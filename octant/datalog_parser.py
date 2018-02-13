@@ -171,7 +171,7 @@ def p_error(t):
         parser.restart()
 
 
-parser = yacc.yacc()
+parser = yacc.yacc(write_tables=False)
 
 
 def parse_atom(str):
