@@ -46,8 +46,8 @@ The Datalog Language
 --------------------
 
 Datalog is a fragment of Prolog. Datalog operates on literals. A literal is an
-atomic formula or its negation. An atomic formula is a term like `p(T1,...Tn)`
-where `p` is a predicate and `Ti` are either variables or constants
+atomic formula or its negation. An atomic formula is a term like ``p(T1,...Tn)``
+where ``p`` is a predicate and ``Ti`` are either variables or constants
 (booleans, numbers, strings or OpenStack ids in our setting).
 
 Some predicates are defined by the context. In our case, these are facts about
@@ -60,14 +60,28 @@ A Datalog program is a set of rules and each rule is a Horn clause:
 
     p(T1...Tn) :- q1(T11...T1n), ... qn(Tk1 ... Tkn).
 
-* `p(T1...Tn)` is called the head of the clause.
-* `q1(T11...T1n), ... qn(Tk1 ... Tkn)` is called the body of the clause.
-* The body may be empty. In that case the rule is written `p(T1...Tn).` and is
+* ``p(T1...Tn)`` is called the head of the clause.
+* ``q1(T11...T1n), ... qn(Tk1 ... Tkn)`` is called the body of the clause.
+* The body may be empty. In that case the rule is written ``p(T1...Tn).`` and is
   called a fact (do not forget the dot at the end of clauses).
 
-Such a Horn clause contributes to the definition of the predicate `p` by adding
-the facts `p(T1...Tn)` for instantiations of the variables in `Ti` that
-make every litteral qi(Ti1...Tin) true.
+Such a Horn clause contributes to the definition of the predicate ``p`` by adding
+new facts. A litteral is true if it either directly stated as a fact or if it is
+an instantiation of the head of a rule such for a substitiont of the variables 
+that make true all the litterals appearing in the body.
+
+More formally, let ``X1``...``Xm`` be the variables appearing in the rule. Let
+``V1``...``Vm`` be constant expression (also known as ground expression).
+We denote ``E[X1 <-V1 ... Xm <-Vm]`` either ``E`` if ``E`` is not a variable
+or ``Vk`` if ``E`` is variable ``Xk``.
+
+``p(T1[X1 <-V1 ... Xm <-Vm], ... Tn[X1 <-V1 ... Xm <-Vm])``
+is true if for every predicate of the body 
+``qi(Ti1[X1 <-V1 ... Xm <-Vm], Tin[X1 <-V1 ... Xm <-Vm])``
+is true.
+
+The set of facts that can be deduced from a Datalog program is independent of
+the order of the rules. In that sense Datalog is truly declarative.
 
 It is important to understand that Z3 operates on finite terms and that it
 represents predicates as tables. Limiting the size of predicates is crucial
@@ -126,7 +140,7 @@ given in section :ref:`exported-tables`.
 
 .. productionlist::
    expr : `IDENT` "=" `texpr`
-   expr : `texpr`
+        : `texpr`
 
 Optionnally expressions may be explicitly typed. The type constraint is
 introduced by a colon and the type is a simple identifier. Expressions are
@@ -137,7 +151,7 @@ character.
 
 .. productionlist::
    texpr : `sexpr` ":" `IDENT`
-   texpr : `sexpr`
+         : `sexpr`
    sexpr : `INTEGER` | `VAR` | `STRING`
 
 Datalog Queries
@@ -238,8 +252,8 @@ representing for example internet access or a corporate internal network
 through a sequence of routers. To simplify, we will not look at actual routes
 or ACL but only at the existence of a path.
 
-Let us call `root1` the litteral defining the roots of the first group of
-networks. `root1("N1").` means that network whose name is "N1" belongs to the
+Let us call ``root1`` the litteral defining the roots of the first group of
+networks. ``root1("N1").`` means that network whose name is "N1" belongs to the
 group. It must be provided extensively by the operator as a list of facts (This
 can be in a separate file generated automatically).
 
@@ -255,28 +269,28 @@ The program computing the networks accessible from those roots is the following:
   connect1(X) :- linked(X, Y), connect1(Y).
   connectName1(Y) :- network(id=X, name=Y), connect1(X).
 
-`linked` defines the fact that two networks are directly connected (through a
+``linked`` defines the fact that two networks are directly connected (through a
 router). It exploits the OpenStack tables for ports and routers.
 
-`connect1` is defined inductively:
+``connect1`` is defined inductively:
 
 * The first clause (base case) states that a root network is member of
-  `connect1`
+  ``connect1``
 * The second clause (inductive case) states that a network linked to a member
-  of `connect1` is also a member of `connect1`
+  of ``connect1`` is also a member of ``connect1``
 
-`connectName1` is used to retrieve the names of networks instead of unreadable
+``connectName1`` is used to retrieve the names of networks instead of unreadable
 uuids.
 
-A query will typically be `connectName1(X)` and will give back all the networks
+A query will typically be ``connectName1(X)`` and will give back all the networks
 connected.
 
-Now we can define two sets of roots (`root1` and `root2`) and two associated
-`connect1` and `connect2` predicates. `root1` could be for example our
-production networks and `root2` our test networks.
+Now we can define two sets of roots (``root1`` and ``root2``) and two associated
+``connect1`` and ``connect2`` predicates. ``root1`` could be for example our
+production networks and ``root2`` our test networks.
 
 We would like to check if there exists VMs attached to a
-network linked to `root1` and a network linked to `root2`. Here is the
+network linked to ``root1`` and a network linked to ``root2``. Here is the
 predicate that checks such double attachments:
 
 .. code-block:: console
@@ -286,7 +300,33 @@ predicate that checks such double attachments:
 
     doubleAttach(Y):- connectVM1(X), connectVM2(X), server(id=X, name=Y).
 
-`connectVM1` and `connectVM2` define devices that are connected to respectively
-`root1` and `root2`.
-`doubleAttach` gives back the name of the VMs members of both groups. We use
-the `server` primitive predicate to find the name of the VM.
+``connectVM1`` and ``connectVM2`` define devices that are connected to respectively
+``root1`` and ``root2``.
+``doubleAttach`` gives back the name of the VMs members of both groups. We use
+the ``server`` primitive predicate to find the name of the VM.
+
+Here is a sample output:
+
+.. code-block:: console
+
+    $ octant --config-file sample.conf --theory sample.dtl \
+         --query 'connectName1("N12121")' --query 'connectName1("N21212")' \
+         --query 'doubleAttach(X)' --time
+    Parsing time: 0.0034239999999999826
+    Data retrieval: 1.262298
+    ********************************************************************************
+    connectName1("N12121")
+    Query time: 0.012639000000000067
+    --------------------------------------------------------------------------------
+        True
+    ********************************************************************************
+    connectName1("N21212")
+    Query time: 0.011633999999999922
+    --------------------------------------------------------------------------------
+        False
+    ********************************************************************************
+    doubleAttach(X)
+    Query time: 0.012620999999999993
+    --------------------------------------------------------------------------------
+        ['C1', 'C3']
+    ********************************************************************************

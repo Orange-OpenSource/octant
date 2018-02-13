@@ -4,10 +4,16 @@ Octant installation guide
 
 
 The preferred installation is through the use of pip.
+
+.. code-block:: console
+
+    sudo pip install octant-1.0.0.tgz
+
 octant can be installed from source with setup.
 
 .. code-block:: console
 
+    cd octant
     python setup.py build
     sudo python setup.py install
 
@@ -28,5 +34,5 @@ OpenStack APIs. Here is an example sample.conf file:
 
 It defines the access for an admin on a cloud where keystone is available on
 machine at address 192.168.122.10. It is recomended to not specify the password
-in a production environment.
-
+in a production environment. In that case the password will be asked
+interactively.
