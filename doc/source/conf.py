@@ -37,7 +37,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'check-reach'
+project = u'octant'
 copyright = u'2018, Orange'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
@@ -68,7 +68,7 @@ htmlhelp_basename = '%sdoc' % project
 latex_documents = [
     ('index',
      '%s.tex' % project,
-     u'%s Documentation' % project,
+     u'%s Documentation' % project, 'Orange',
      'manual'),
 ]
 
