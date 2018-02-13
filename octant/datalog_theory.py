@@ -55,7 +55,9 @@ def z3_to_array(expr):
     elif kind == z3.Z3_OP_EQ:
         return [[expr.children()[1]]]
     elif kind == z3.Z3_OP_FALSE:
-        return [[]]
+        return False
+    elif kind == z3.Z3_OP_TRUE:
+        return True
     else:
         raise compiler.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
 
@@ -260,8 +262,11 @@ class Z3Theory(object):
         self.context.query(query)
         types = [self.types[param] for param in atom.table.params]
         answer = z3_to_array(self.context.get_answer())
+        if type(answer) is bool:
+            return answer
         return [
-            type.os(x) for row in answer for type, x in moves.zip(types, row)]
+            type_x.os(x) for row in answer
+            for type_x, x in moves.zip(types, row)]
 
 
 def print_result(query, answers, time):
