@@ -77,7 +77,7 @@ TABLES = {
         "id": ("id", lambda s: s.id),
         "project_id": ("id", lambda s: s.project_id),
         "name": ("string", lambda s: s.name),
-        "host": ("string", lambda s: s.v.hypervisor_hostname)
+        "host": ("string", lambda s: s.hypervisor_hostname)
     })
 }
 
