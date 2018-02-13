@@ -23,7 +23,7 @@ from octant import datalog_ast as ast
 
 tokens = (
     'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR',
-    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT'
+    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE'
 )
 
 t_EQUAL = r'='
@@ -33,6 +33,7 @@ t_COMMA = r','
 t_CPAR = r'\)'
 t_OPAR = r'\('
 t_ENTAIL = r':-'
+t_TILDE = r'~'
 t_IDENT = r'[a-z][a-zA-Z0-9_]*'
 t_VAR = r'[A-Z][a-zA-Z0-9_]*'
 
@@ -103,6 +104,11 @@ def p_predicate_list_many(t):
 def p_predicate(t):
     'predicate : IDENT OPAR expr_list CPAR'
     t[0] = ast.Atom(table=t[1], args=t[3])
+
+
+def p_neg_predicate(t):
+    'predicate : TILDE IDENT OPAR expr_list CPAR'
+    t[0] = ast.Atom(table=t[2], args=t[4], negated=True)
 
 
 def p_expr_list_one(t):
