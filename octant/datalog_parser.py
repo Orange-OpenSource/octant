@@ -102,13 +102,24 @@ def p_predicate_list_many(t):
 
 
 def p_predicate(t):
-    'predicate : IDENT OPAR expr_list CPAR'
-    t[0] = ast.Atom(table=t[1], args=t[3])
+    'predicate : positive'
+    t[0] = t[1]
 
 
 def p_neg_predicate(t):
-    'predicate : TILDE IDENT OPAR expr_list CPAR'
-    t[0] = ast.Atom(table=t[2], args=t[4], negated=True)
+    'predicate : TILDE positive'
+    t[2].negated = True
+    t[0] = t[2]
+
+
+def p_positive(t):
+    'positive : IDENT OPAR expr_list CPAR'
+    t[0] = ast.Atom(table=t[1], args=t[3])
+
+
+def p_positive_eq(t):
+    'positive : sexpr EQUAL sexpr'
+    t[0] = ast.Atom(table='eq', args=[t[1], t[3]])
 
 
 def p_expr_list_one(t):

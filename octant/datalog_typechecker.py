@@ -58,7 +58,9 @@ def type(rules, primitive_tables):
             Sustitute table name with a unique table description and
             make var instances unique in arguments.
             """
-            if atom.table in dict_tables:
+            if atom.table == 'eq':
+                atom.table = ast.TypedTable('eq', [None, None])
+            elif atom.table in dict_tables:
                 atom.table = dict_tables[atom.table]
                 if len(atom.table.params) != len(atom.args):
                     raise Z3TypeError("Arity problem for symbol")
@@ -99,6 +101,27 @@ def type(rules, primitive_tables):
                                 arg.type,
                                 param_type,
                                 atom
+                            ))
+        if atom.table.name == 'eq':
+            param0 = atom.table.params[0]
+            param1 = atom.table.params[1]
+            if param0 is None:
+                if param1 is not None:
+                    atom.table.params[0] = atom.table.params[1]
+                    atom.args[0] = atom.table.params[1]
+                    work_done = True
+            else:
+                if param1 is None:
+                    atom.table.params[1] = atom.table.params[0]
+                    atom.args[1] = atom.table.params[0]
+                    work_done = True
+                else:
+                    if param0 != param1:
+                        raise Z3TypeError(
+                            "Type error on equality {} not {} != {}".format(
+                                atom,
+                                param0,
+                                param1
                             ))
         return work_done
     dict_tables = prepare_typing()

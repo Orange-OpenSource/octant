@@ -237,8 +237,11 @@ class Z3Theory(object):
 
     def compile_atom(self, vars, atom):
         args = [self.compile_expr(vars, expr) for expr in atom.args]
-        relation = self.relations[atom.table.name]
-        compiled_atom = relation(*args)
+        if atom.table.name == 'eq':
+            compiled_atom = args[0] == args[1]
+        else:
+            relation = self.relations[atom.table.name]
+            compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
     def build_rules(self):
