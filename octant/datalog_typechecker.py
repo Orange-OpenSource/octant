@@ -13,6 +13,7 @@
 #    under the License.
 
 """Type-checker for Datalog"""
+from six import moves
 
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
@@ -82,7 +83,7 @@ def type(rules, primitive_tables):
     def type_atom(atom):
         params = atom.table.params
         work_done = False
-        for i in range(len(params)):
+        for i in moves.range(len(params)):
             param_type = params[i]
             arg = atom.args[i]
             if param_type is None:
