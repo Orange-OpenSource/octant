@@ -13,6 +13,7 @@
 #    under the License.
 
 """Transform an AST describing a theory in a Z3 context"""
+from six import moves
 
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
@@ -28,16 +29,32 @@ class Z3NotWellFormed(Exception):
 
 class Z3Compiler(object):
 
-    def __init__(self, rules):
+    def __init__(self, rules, constants):
         self.rules = rules
         self.primitive_tables = {}
         self.var_count = 0
+        self.constants = constants
 
     def compile(self):
+        self.substitute_constants(self.constants)
         self.rename_variables()
         self.find_base_relations()
         typed_tables = typechecker.type(self.rules, self.primitive_tables)
         return self.primitive_tables, typed_tables
+
+    def substitute_constants(self, constants):
+        def subst_in_atom(atom):
+            args = atom.args
+            for i in moves.range(len(args)):
+                if isinstance(args[i], ast.Constant):
+                    arg = constants.get(args[i].name, None)
+                    if arg is None:
+                        raise Z3NotWellFormed(
+                            "Unknown constant: {}", args[i].name)
+        for rule in self.rules:
+            subst_in_atom(rule.head)
+            for atom in rule.body:
+                subst_in_atom(atom)
 
     def rename_variables(self):
         # WARNING: without nonlocal (python3) known must only be modified by

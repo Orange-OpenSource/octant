@@ -149,14 +149,16 @@ given in section :ref:`exported-tables`.
 Optionnally expressions may be explicitly typed. The type constraint is
 introduced by a colon and the type is a simple identifier. Expressions are
 either constants or variables. Integers are classical 32 bit integers,
-variable names MUST begin with anupper-case letter.
+variable names MUST begin with an upper-case letter.
 Strings must be enclosed between double-quotes and backslash is the escape
 character.
+Finally idents represent octant constants. Existing constants are described 
+in section :ref:`exported-types`.
 
 .. productionlist::
    texpr : `sexpr` ":" `IDENT`
          : `sexpr`
-   sexpr : `INTEGER` | `VAR` | `STRING`
+   sexpr : `INTEGER` | `VAR` | `STRING` | `IDENT`
 
 Datalog Queries
 ===============
@@ -164,6 +166,26 @@ Queries are regular litterals. They can contain variables. The result of
 a query is either True or False for a query without variables or a list of
 lists. Each sublist correspond to an instantiation of all the variables that
 appear in the query in the order of appearance  that makes the litteral valid.
+
+.. _exported-types:
+
+--------------------------
+Types and  Constants
+--------------------------
+
+**bool**
+    boolean
+**string**
+    string constants. By default 65536 strings can be handled.
+**int**
+    small integers
+**id**
+    OpenStack ids (implemented as UUID by OpenStack). Use **none** to
+    represent the absence of id
+**ip_version**
+    Ip version. Can be either **ipv4** or **ipv6**.
+**direction**
+    Direction of a security group rule: either **ingress** or **egress**.
 
 .. _exported-tables:
 

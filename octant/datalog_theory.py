@@ -138,7 +138,8 @@ class Z3Theory(object):
 
     def __init__(self, rules):
         self.rules = rules
-        self.compile_instance = compiler.Z3Compiler(rules)
+        self.compile_instance = (
+            compiler.Z3Compiler(rules, primitives.CONSTANTS))
         primitive_tables, typed_tables = self.compile_instance.compile()
         self.primitive_tables = primitive_tables
         self.typed_tables = typed_tables
@@ -154,6 +155,8 @@ class Z3Theory(object):
             'id': StringType('id'),
             'int': NumType('int'),
             'int4': NumType('int', size=4),
+            'direction': StringType('direction', size=2),
+            'ip_version': StringType('direction', size=2),
             'bool': BoolType()
         }
 

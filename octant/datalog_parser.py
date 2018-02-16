@@ -160,14 +160,19 @@ def p_sexpr_number(t):
     t[0] = ast.NumConstant(t[1])
 
 
-def p_expr_var(t):
+def p_sexpr_var(t):
     'sexpr : VAR'
     t[0] = ast.Variable(t[1])
 
 
-def p_expr_string(t):
+def p_sexpr_string(t):
     'sexpr : STRING'
     t[0] = ast.StringConstant(t[1])
+
+
+def p_sexpr_ident(t):
+    'sexpr : IDENT'
+    t[0] = ast.Constant(t[1])
 
 
 def p_error(t):

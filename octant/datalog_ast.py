@@ -141,3 +141,12 @@ class TypedTable(object):
         return "[{}({})]".format(
             self.name,
             ",".join(str(x) for x in self.params))
+
+
+class Constant(object):
+    """A constant to be substituted"""
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name

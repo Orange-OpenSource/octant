@@ -13,6 +13,7 @@
 #    under the License.
 
 """Primitive tables exported from OpenStack for Datalog"""
+from octant import datalog_ast as ast
 
 
 def get_networks(conn):
@@ -117,6 +118,10 @@ def get_role_assignments(conn):
     return conn.identity.role_assignments()
 
 
+def ip_version(n):
+    return 'ipv4' if n == 4 else 'ipv6'
+
+
 def hide_none(c):
     "" if c is None else c
 
@@ -127,6 +132,13 @@ def _project_scope(p):
         if p.scope is not None and p.scope['project'] is not None
         else None)
 
+CONSTANTS = {
+    "none": ast.StringConstant('', type='id'),
+    "ingress": ast.StringConstant('ingress', type='direction'),
+    "egress": ast.StringConstant('egress', type='direction'),
+    "ipv4": ast.StringConstant('ipv4', type='ip_version'),
+    "ipv6": ast.StringConstant('ipv6', type='ip_version'),
+}
 
 # Describes how to bind values extracted from the to Python table.
 TABLES = {
@@ -153,7 +165,7 @@ TABLES = {
     "subnet_pool": (get_subnet_pools, {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
-        "ip_version": ("int", lambda s: s.ip_version),
+        "ip_version": ("ip_version", lambda s: ip_version(s.ip_version)),
         "project_id": ("id", lambda p: p.project_id),
         "address_scope_id": ("id", lambda p: hide_none(p.address_scope_id)),
     }),
@@ -179,7 +191,7 @@ TABLES = {
         "name": ("string", lambda p: p.name),
         "network_id": ("id", lambda p: p.network_id),
         "project_id": ("id", lambda p: p.project_id),
-        "ip_version": ("int", lambda s: s.ip_version)
+        "ip_version": ("ip_version", lambda s: ip_version(s.ip_version))
     }),
     "sg": (get_sg, {
         "id": ("id", lambda p: p.id),
@@ -189,7 +201,7 @@ TABLES = {
     "rule": ((get_security_group_rules, {
         "id": ("id", lambda p: p.id),
         "direction": ("string", lambda p: p.direction),
-        "ip_version": ("int", (
+        "ip_version": ("ip_version", ip_version(
             lambda p: 4 if p.ether_type == 'IPv4' else 6
         )),
         "port_range_max": ("int", (
