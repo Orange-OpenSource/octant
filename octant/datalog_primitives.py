@@ -118,14 +118,14 @@ def get_role_assignments(conn):
 
 
 def hide_none(c):
-    "-" if c is None else c
+    "" if c is None else c
 
 
 def _project_scope(p):
-    return (
+    return hide_none(
         p.scope['project']['id']
         if p.scope is not None and p.scope['project'] is not None
-        else "-")
+        else None)
 
 
 # Describes how to bind values extracted from the to Python table.
@@ -200,9 +200,9 @@ TABLES = {
         )),
         "protocol": ("string", (lambda p: hide_none(p.protocol))),
         "project_id": ("id", lambda p: p.project_id),
-        "remote_group_id": ("id", lambda p: p.remote_group_id),
+        "remote_group_id": ("id", lambda p: hide_none(p.remote_group_id)),
         "remote_ip_prefix": ("string", (
-            lambda p: p.remote_ip_prefix
+            lambda p: hide_none(p.remote_ip_prefix)
         )),
         "security_group_id": ("id", lambda p: p.security_group_id)
     })),
@@ -230,9 +230,7 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
         "domain_id": ("id", lambda p: p.domain_id),
-        "parent_id": ("id", (
-            lambda p: "-" if p.parent_id is None else p.parent_id
-        ))
+        "parent_id": ("id", (lambda p: hide_none(p.parent_id)))
     }),
     "region": (get_regions, {
         "id": ("id", lambda p: p.id),
@@ -273,11 +271,13 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
         "group_id": ("id", (
-            lambda p: p.group['id'] if p.group is not None else "-")),
+            lambda p: hide_none(p.group['id'] if p.group is not None else None)
+        )),
         "role_id": ("id", lambda p: p.role['id']),
         "project_id": ("id", _project_scope),
         "user_id": ("id", (
-            lambda p: p.user['id'] if p.user is not None else "-")),
+            lambda p: hide_none(p.user['id'] if p.user is not None else None)
+        ))
     })
 }
 
