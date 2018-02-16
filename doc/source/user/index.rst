@@ -119,14 +119,18 @@ of litterals separated by commas and terminated by a dot.
 
 The litterals building the clause are defined by a predicate identifier and
 a list of expressions between parenthesis and separated by commas. Predicate
-identifiers MUST begin with a lower-case letter.
+identifiers MUST begin with a lower-case letter. A litteral may also be an
+equality.
+
 An optional tilde at the begining of a litteral indicates a negated litteral.
 The use of negation in Datalog is constrained to ensure that there is no
 recursive loops between predicates using negation.
 Octant will not check that negation is stratified but Z3 will.
 
 .. productionlist::
-   litteral : "~"? `IDENT` "(" `expr_list` ")"
+   litteral : "~"? positive
+   positive : `IDENT` "(" `expr_list` ")"
+            : sexpr "=" sexpr
    expr_list : `expr`
              : `expr_list` "," `expr`
 
@@ -167,8 +171,11 @@ appear in the query in the order of appearance  that makes the litteral valid.
 Openstack Exported Tables
 -------------------------
 
+Networking (Neutron)
+====================
+
 network
-=======
+-------
 
 ==========  =======  =======================
 FieldName   Type     Description
@@ -179,7 +186,7 @@ project_id  id       id of owner project
 ==========  =======  =======================
 
 router
-======
+------
 
 ==========  =======  =======================
 FieldName   Type     Description
@@ -191,57 +198,240 @@ status      string   status of router
 ==========  =======  =======================
 
 port
-====
+----
 
 ==========  =======  ===============================
 FieldName   Type     Description
 ==========  =======  ===============================
-id          id       id of the router
-name        string   router name
+id          id       id of the port
+name        string   port name
 host        string   name of hosting compute node
 project_id  id       id of owner project
 network_id  id       name of network
 device_id   id       name of device having the port
+status      string   status of port
 ==========  =======  ===============================
 
-
 subnet
-======
+------
 
 ==========  =======  =======================
 FieldName   Type     Description
 ==========  =======  =======================
-id          id       id of the router
-name        string   router name
+id          id       id of the subnet
+name        string   subnet name
 project_id  id       id of owner project
-network_id  id       name of network
+network_id  id       id of network
 ip_version  int      4 or 6
 ==========  =======  =======================
 
+subnet_pool
+-----------
 
-acl
-===
+================  =======  ===========================
+FieldName         Type     Description
+================  =======  ===========================
+id                id       id of the subnet pool
+name              string   subnet pool name
+project_id        id       id of owner project
+address_scope_id  id       id of address scope or none
+ip_version        int      4 or 6
+================  =======  ===========================
+
+subnet_pool_prefix
+------------------
 
 ==========  =======  =======================
 FieldName   Type     Description
 ==========  =======  =======================
-id          id       id of the router
-name        string   router name
-project_id  id       id of owner project
+id          id       id of the subnet pool
+prefix      string   address prefix
 ==========  =======  =======================
+
+address_scope
+-------------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the address scope
+name        string   address scope name
+==========  =======  =======================
+
+sg
+--
+
+==========  =======  ========================
+FieldName   Type     Description
+==========  =======  ========================
+id          id       id of the security group
+name        string   security group name
+project_id  id       id of owner project
+==========  =======  ========================
+
+rule
+----
+
+=================  =======  ========================
+FieldName          Type     Description
+=================  =======  ========================
+id                 id       id of the rule
+ip_version         int      4 or 6
+direction          string   direction of the rule
+port_range_max     int      maximum port number
+port_range_min     int      minimum port number
+protocol           strirng  protocol filtered (or -)
+remote_group_id    id       remote group id
+remote_ip_prefix   string   remote ip prefix
+security_group_id  id       security group id
+project_id         id       id of owner project
+=================  =======  ========================
+
+Compute (Nova)
+==============
 
 server
-======
+------
 
 ==========  =======  =======================
 FieldName   Type     Description
 ==========  =======  =======================
-id          id       id of the router
-name        string   router name
+id          id       id of the server
+name        string   server name
 project_id  id       id of owner project
 host        string   name of hosting compute
+image_id    id       id of image
+flavor_id   id       id of flavor
 ==========  =======  =======================
 
+flavor
+------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the flavor
+name        string   flavor name
+vcpus       int      number of virtual cpus
+ram         int      ram size (Mb)
+disk        int      disk size (Gb)
+public      bool     is flavour public
+==========  =======  =======================
+
+image
+-----
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the image
+name        string   image name
+==========  =======  =======================
+
+Identity (Keystone)
+===================
+
+project
+-------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the project
+name        string   router name
+domain_id   id       id of domain
+parent_id   id       id of enclosing project
+==========  =======  =======================
+
+region
+------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the region
+name        string   region name
+parent_id   id       id of enclosing region
+==========  =======  =======================
+
+domain
+------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the domain
+name        string   domain name
+==========  =======  =======================
+
+role
+----
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the role
+name        string   role name
+==========  =======  =======================
+
+user
+----
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the user
+name        string   user name
+domain_id   id       id of domain
+==========  =======  =======================
+
+group
+-----
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the group
+name        string   group name
+domain_id   id       id of domain
+==========  =======  =======================
+
+service
+-------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the service
+name        string   service name
+type        string   kind of service
+==========  =======  =======================
+
+endpoint
+--------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the endpoint
+url         string   url of endpoint
+service_id  id       id of service
+region_id   id       id of region
+==========  =======  =======================
+
+role_assignment
+---------------
+
+==========  =======  =======================
+FieldName   Type     Description
+==========  =======  =======================
+id          id       id of the group
+name        string   group name
+group_id    id       id of group
+role_id     id       id or role
+project_id  id       id of project scope
+user_id     id       id of user 
+==========  =======  =======================
 
 ----------
 An Example
