@@ -174,7 +174,7 @@ Types and  Constants
 --------------------------
 
 **bool**
-    boolean
+    boolean. Values are **true** and **false**
 **string**
     string constants. By default 65536 strings can be handled.
 **int**
@@ -184,6 +184,9 @@ Types and  Constants
     represent the absence of id
 **ip_version**
     Ip version. Can be either **ipv4** or **ipv6**.
+**status**
+    Status of a neutron object. Can be either **active**, **down**, **build**,
+    **error** or **other** (for unofficial extensions).
 **direction**
     Direction of a security group rule: either **ingress** or **egress**.
 
@@ -205,6 +208,7 @@ FieldName   Type     Description
 id          id       id of the network
 name        string   network name
 project_id  id       id of owner project
+status      status   status of network
 ==========  =======  =======================
 
 router
@@ -216,7 +220,7 @@ FieldName   Type     Description
 id          id       id of the router
 name        string   router name
 project_id  id       id of owner project
-status      string   status of router
+status      status   status of router
 ==========  =======  =======================
 
 port
@@ -231,21 +235,45 @@ host        string   name of hosting compute node
 project_id  id       id of owner project
 network_id  id       name of network
 device_id   id       name of device having the port
-status      string   status of port
+status      status   status of port
 ==========  =======  ===============================
+
+port_ip
+-------
+
+==========  ==========  =======================
+FieldName   Type        Description
+==========  ==========  =======================
+port_id     id          id of the port
+subnet_id   id          subnet id hosting port
+ip          ip_address  ip on the subnet
+==========  ==========  =======================
+
+port_sg
+-------
+
+==========  ==========  ========================
+FieldName   Type        Description
+==========  ==========  ========================
+port_id     id          id of the port
+sg_id       id          id of the security group
+==========  ==========  ========================
 
 subnet
 ------
 
-==========  =======  =======================
-FieldName   Type     Description
-==========  =======  =======================
-id          id       id of the subnet
-name        string   subnet name
-project_id  id       id of owner project
-network_id  id       id of network
-ip_version  int      4 or 6
-==========  =======  =======================
+============  ==========  =======================
+FieldName     Type        Description
+============  ==========  =======================
+id            id          id of the subnet
+name          string      subnet name
+project_id    id          id of owner project
+network_id    id          id of network
+ip_version    int         4 or 6
+cidr_prefix   ip_address  address part of cidr
+cidr_mask     ip_address  netmask part of cidr
+gateway_ip    ip_address  ip of subnet gateway
+============  ==========  =======================
 
 subnet_pool
 -----------
@@ -294,20 +322,21 @@ project_id  id       id of owner project
 rule
 ----
 
-=================  =======  ========================
-FieldName          Type     Description
-=================  =======  ========================
-id                 id       id of the rule
-ip_version         int      4 or 6
-direction          string   direction of the rule
-port_range_max     int      maximum port number
-port_range_min     int      minimum port number
-protocol           strirng  protocol filtered (or -)
-remote_group_id    id       remote group id
-remote_ip_prefix   string   remote ip prefix
-security_group_id  id       security group id
-project_id         id       id of owner project
-=================  =======  ========================
+=================  ===========  ========================
+FieldName          Type         Description
+=================  ===========  ========================
+id                 id           id of the rule
+ip_version         int          4 or 6
+direction          string       direction of the rule
+port_range_max     int          maximum port number
+port_range_min     int          minimum port number
+protocol           strirng      protocol filtered (or -)
+remote_group_id    id           remote group id
+remote_ip_prefix   ip_address   remote ip network prefix
+remote_ip_mask     ip_address   netmask part of remote ip 
+security_group_id  id           security group id
+project_id         id           id of owner project
+=================  ===========  ========================
 
 Compute (Nova)
 ==============

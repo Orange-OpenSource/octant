@@ -131,6 +131,17 @@ class StringConstant(Expr):
         return self.str_label('"{}"'.format(self.val))
 
 
+class BoolConstant(Expr):
+    "A boolean constant"
+
+    def __init__(self, val, label=None):
+        super(BoolConstant, self).__init__(label=label, type='bool')
+        self.val = val
+
+    def __repr__(self):
+        return self.str_label(str(self.val))
+
+
 class TypedTable(object):
     """A table with a name and types of its columns"""
     def __init__(self, name, params=[]):

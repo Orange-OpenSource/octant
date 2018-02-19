@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import abc
 import getpass
+import ipaddress
 import sys
 import textwrap
 import time
@@ -86,6 +87,7 @@ class Z3Type(object):
 
 
 class BoolType(Z3Type):
+    """Transcode boolean in Z3"""
 
     def __init__(self):
         super(BoolType, self).__init__('bool', z3.BoolSort())
@@ -98,6 +100,7 @@ class BoolType(Z3Type):
 
 
 class StringType(Z3Type):
+    """Transcode strings in Z3"""
 
     def __init__(self, name, size=16):
         super(StringType, self).__init__(name, z3.BitVecSort(size))
@@ -105,7 +108,6 @@ class StringType(Z3Type):
         self.back = {}
 
     def z3(self, str):
-        """Translates a string to a number and ultimately a bit vector"""
         if str in self.map:
             return self.map[str]
         else:
@@ -120,6 +122,7 @@ class StringType(Z3Type):
 
 
 class NumType(Z3Type):
+    """Transcode numbers in Z3"""
 
     def __init__(self, name, size=32):
         super(NumType, self).__init__(name, z3.BitVecSort(size))
@@ -131,6 +134,22 @@ class NumType(Z3Type):
 
     def os(self, val):
         return val.as_long()
+
+
+IpAddressSort = z3.BitVecSort(32)
+
+
+class IpAddressType(Z3Type):
+    """Transcode IP address in Z3"""
+
+    def __init__(self):
+        super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
+
+    def z3(self, val):
+        return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
+
+    def os(self, val):
+        return ipaddress.ip_address(val.as_long()).compressed
 
 
 class Z3Theory(object):
@@ -151,13 +170,15 @@ class Z3Theory(object):
         self.context = context
 
         self.types = {
+            'bool': BoolType(),
             'string': StringType('string'),
             'id': StringType('id'),
             'int': NumType('int'),
             'int4': NumType('int', size=4),
             'direction': StringType('direction', size=2),
+            'status': StringType('status', size=3),
+            'ip_address': IpAddressType(),
             'ip_version': StringType('direction', size=2),
-            'bool': BoolType()
         }
 
     def build_theory(self):
@@ -186,7 +207,13 @@ class Z3Theory(object):
 
         access_fields = [get_field(field) for field in fields]
         for obj in accessor(conn):
-            self.context.fact(relation(*[acc(obj) for acc in access_fields]))
+            try:
+                self.context.fact(relation(
+                    *[acc(obj) for acc in access_fields]))
+            except Exception as e:
+                print("Error while retrieving table {} on {}".format(
+                    table_name, obj))
+                raise e
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
@@ -224,7 +251,9 @@ class Z3Theory(object):
         if isinstance(expr, ast.NumConstant):
             return self.types['int'].z3(expr.val)
         elif isinstance(expr, ast.StringConstant):
-            return self.types['string'].z3(expr.val)
+            return self.types[expr.type].z3(expr.val)
+        elif isinstance(expr, ast.BoolConstant):
+            return self.types['bool'].z3(expr.val)
         elif isinstance(expr, ast.Variable):
             if expr.id in vars:
                 return vars[expr.id]
@@ -255,6 +284,7 @@ class Z3Theory(object):
 
     def query(self, str):
         atom = parser.parse_atom(str)
+        self.compile_instance.substitutes_constants_in_atom(atom)
         if atom.table not in self.typed_tables:
             raise compiler.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))

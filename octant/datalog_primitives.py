@@ -13,7 +13,45 @@
 #    under the License.
 
 """Primitive tables exported from OpenStack for Datalog"""
+import ipaddress
 from octant import datalog_ast as ast
+
+
+def bits_of_mask(mask):
+    """Bit size of a network mask
+
+    From an integer representing a network mask, extract
+    the number of bits of the mask (for cidr notation).
+    """
+    bits = 0
+    while(mask > 0):
+        bits += 1
+        mask = (mask & 0x7fffffff) << 1
+    return bits
+
+
+def normalize_status(raw):
+    """Normalize status values
+
+    Gives back a value between active,down,build,error and other
+    """
+    lower = raw.lower()
+    if lower in ['active', 'down', 'build', 'error']:
+        return lower
+    return 'other'
+
+
+def prefix_of_network(cidr):
+    return (
+        '0.0.0.0' if cidr is None
+        else ipaddress.ip_network(
+            cidr, strict=False).network_address.compressed)
+
+
+def mask_of_network(cidr):
+    return (
+        '0.0.0.0' if cidr is None
+        else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
 
 
 def get_networks(conn):
@@ -138,6 +176,13 @@ CONSTANTS = {
     "egress": ast.StringConstant('egress', type='direction'),
     "ipv4": ast.StringConstant('ipv4', type='ip_version'),
     "ipv6": ast.StringConstant('ipv6', type='ip_version'),
+    "active": ast.StringConstant('active', type='status'),
+    "down": ast.StringConstant('down', type='status'),
+    "build": ast.StringConstant('build', type='status'),
+    "error": ast.StringConstant('error', type='status'),
+    "other": ast.StringConstant('other', type='status'),
+    "true": ast.BoolConstant(True),
+    "false": ast.BoolConstant(False)
 }
 
 # Describes how to bind values extracted from the to Python table.
@@ -145,12 +190,13 @@ TABLES = {
     "network": (get_networks, {
         "id": ("id", lambda n: n.id),
         "project_id": ("id", lambda n: n.project_id),
-        "name": ("string", lambda n: n.name)
+        "name": ("string", lambda n: n.name),
+        "status": ("status", lambda n: normalize_status(n.status))
     }),
     "router": (get_routers, {
         "id": ("id", lambda r: r.id),
         "project_id": ("id", lambda r: r.project_id),
-        "status": ("string", lambda r: r.status),
+        "status": ("status", lambda r: normalize_status(r.status)),
         "name": ("string", lambda r: r.name)
     }),
     "port": (get_ports, {
@@ -160,27 +206,12 @@ TABLES = {
         "network_id": ("id", lambda p: p.network_id),
         "project_id": ("id", lambda p: p.project_id),
         "device_id": ("id", lambda p: p.device_id),
-        "status": ("string", lambda p: p.status)
-    }),
-    "subnet_pool": (get_subnet_pools, {
-        "id": ("id", lambda p: p.id),
-        "name": ("string", lambda p: p.name),
-        "ip_version": ("ip_version", lambda s: ip_version(s.ip_version)),
-        "project_id": ("id", lambda p: p.project_id),
-        "address_scope_id": ("id", lambda p: hide_none(p.address_scope_id)),
-    }),
-    "subnet_pool_prefixes": (get_subnet_pool_prefixes, {
-        "id": ("id", lambda p: p[0]),
-        "prefix": ("string", lambda p: p[1])
-    }),
-    "address_scope": (get_address_scopes, {
-        "id": ("id", lambda p: p.id),
-        "name": ("string", lambda p: p.name),
+        "status": ("status", lambda p: normalize_status(p.status))
     }),
     "port_ip": (get_port_ips, {
         "port_id": ("id", lambda pi: pi[0]),
         "subnet_id": ("id", lambda pi: pi[1]['subnet_id']),
-        "ip": ("string", lambda pi: pi[1]['ip_address']),
+        "ip": ("ip_address", lambda pi: pi[1]['ip_address']),
     }),
     "port_sg": (get_port_sgs, {
         "port_id": ("id", lambda psg: psg[0]),
@@ -191,7 +222,26 @@ TABLES = {
         "name": ("string", lambda p: p.name),
         "network_id": ("id", lambda p: p.network_id),
         "project_id": ("id", lambda p: p.project_id),
+        "cidr_prefix": ("ip_address", lambda s: prefix_of_network(s.cidr)),
+        "cidr_mask": ("ip_address", lambda s: mask_of_network(s.cidr)),
+        "gateway_ip": ("ip_address", lambda s: s.gateway_ip),
         "ip_version": ("ip_version", lambda s: ip_version(s.ip_version))
+    }),
+    "subnet_pool": (get_subnet_pools, {
+        "id": ("id", lambda p: p.id),
+        "name": ("string", lambda p: p.name),
+        "ip_version": ("ip_version", lambda s: ip_version(s.ip_version)),
+        "project_id": ("id", lambda p: p.project_id),
+        "address_scope_id": ("id", lambda p: hide_none(p.address_scope_id)),
+    }),
+    "subnet_pool_prefixes": (get_subnet_pool_prefixes, {
+        "id": ("id", lambda p: p[0]),
+        "prefix": ("ip_address", lambda p: prefix_of_network(p[1])),
+        "mask": ("ip_address", lambda p: mask_of_network(p[1]))
+    }),
+    "address_scope": (get_address_scopes, {
+        "id": ("id", lambda p: p.id),
+        "name": ("string", lambda p: p.name),
     }),
     "sg": (get_sg, {
         "id": ("id", lambda p: p.id),
@@ -201,9 +251,10 @@ TABLES = {
     "rule": ((get_security_group_rules, {
         "id": ("id", lambda p: p.id),
         "direction": ("string", lambda p: p.direction),
-        "ip_version": ("ip_version", ip_version(
-            lambda p: 4 if p.ether_type == 'IPv4' else 6
-        )),
+        "ip_version": (
+            "ip_version",
+            lambda p: ip_version(4 if p.ether_type == 'IPv4' else 6)
+        ),
         "port_range_max": ("int", (
             lambda p: 65536 if p.port_range_max is None else p.port_range_max
         )),
@@ -213,8 +264,11 @@ TABLES = {
         "protocol": ("string", (lambda p: hide_none(p.protocol))),
         "project_id": ("id", lambda p: p.project_id),
         "remote_group_id": ("id", lambda p: hide_none(p.remote_group_id)),
-        "remote_ip_prefix": ("string", (
-            lambda p: hide_none(p.remote_ip_prefix)
+        "remote_ip_prefix": ("ip_address", (
+            lambda p: prefix_of_network(p.remote_ip_prefix)
+        )),
+        "remote_ip_mask": ("ip_address", (
+            lambda p: mask_of_network(p.remote_ip_prefix)
         )),
         "security_group_id": ("id", lambda p: p.security_group_id)
     })),
