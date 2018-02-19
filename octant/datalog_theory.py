@@ -271,8 +271,9 @@ class Z3Theory(object):
         if type(answer) is bool:
             return answer
         return [
-            type_x.os(x) for row in answer
-            for type_x, x in moves.zip(types, row)]
+            [type_x.os(x)
+             for type_x, x in moves.zip(types, row)]
+            for row in answer]
 
 
 def print_result(query, answers, time):
