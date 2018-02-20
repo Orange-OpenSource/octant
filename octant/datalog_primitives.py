@@ -160,18 +160,14 @@ def ip_version(n):
     return 'ipv4' if n == 4 else 'ipv6'
 
 
-def hide_none(c):
-    "" if c is None else c
-
-
 def _project_scope(p):
-    return hide_none(
+    return (
         p.scope['project']['id']
-        if p.scope is not None and p.scope['project'] is not None
+        if p.scope is not None and p.scope.get('project', None) is not None
         else None)
 
 CONSTANTS = {
-    "none": ast.StringConstant('', type='id'),
+    "none": ast.StringConstant(None, type='id'),
     "ingress": ast.StringConstant('ingress', type='direction'),
     "egress": ast.StringConstant('egress', type='direction'),
     "ipv4": ast.StringConstant('ipv4', type='ip_version'),
@@ -232,7 +228,7 @@ TABLES = {
         "name": ("string", lambda p: p.name),
         "ip_version": ("ip_version", lambda s: ip_version(s.ip_version)),
         "project_id": ("id", lambda p: p.project_id),
-        "address_scope_id": ("id", lambda p: hide_none(p.address_scope_id)),
+        "address_scope_id": ("id", lambda p: p.address_scope_id),
     }),
     "subnet_pool_prefixes": (get_subnet_pool_prefixes, {
         "id": ("id", lambda p: p[0]),
@@ -261,9 +257,9 @@ TABLES = {
         "port_range_min": ("int", (
             lambda p: 0 if p.port_range_min is None else p.port_range_min
         )),
-        "protocol": ("string", (lambda p: hide_none(p.protocol))),
+        "protocol": ("string", (lambda p: p.protocol)),
         "project_id": ("id", lambda p: p.project_id),
-        "remote_group_id": ("id", lambda p: hide_none(p.remote_group_id)),
+        "remote_group_id": ("id", lambda p: p.remote_group_id),
         "remote_ip_prefix": ("ip_address", (
             lambda p: prefix_of_network(p.remote_ip_prefix)
         )),
@@ -296,12 +292,12 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
         "domain_id": ("id", lambda p: p.domain_id),
-        "parent_id": ("id", (lambda p: hide_none(p.parent_id)))
+        "parent_id": ("id", (lambda p: p.parent_id))
     }),
     "region": (get_regions, {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
-        "parent_id": ("id", (lambda p: hide_none(p.parent_region_id))),
+        "parent_id": ("id", (lambda p: p.parent_region_id)),
     }),
     "domain": (get_domains, {
         "id": ("id", lambda p: p.id),
@@ -325,7 +321,7 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "url": ("string", lambda p: p.url),
         "interface": ("string", lambda p: p.interface),
-        "service_id": ("id", lambda p: p.sevice_id),
+        "service_id": ("id", lambda p: p.service_id),
         "region_id": ("id", lambda p: p.region_id)
     }),
     "group": (get_groups, {
@@ -337,12 +333,12 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
         "group_id": ("id", (
-            lambda p: hide_none(p.group['id'] if p.group is not None else None)
+            lambda p: p.group['id'] if p.group is not None else None
         )),
         "role_id": ("id", lambda p: p.role['id']),
         "project_id": ("id", _project_scope),
         "user_id": ("id", (
-            lambda p: hide_none(p.user['id'] if p.user is not None else None)
+            lambda p: p.user['id'] if p.user is not None else None
         ))
     })
 }
