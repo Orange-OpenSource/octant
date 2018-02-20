@@ -96,7 +96,7 @@ class BoolType(Z3Type):
         return z3.BoolVal(val)
 
     def os(self, val):
-        return val.sort_kind().name() == 'true'
+        return val.decl().name() == 'true'
 
 
 class StringType(Z3Type):
