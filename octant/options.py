@@ -36,6 +36,9 @@ CLI_OPTIONS = [
         'query',
         help=("Query(ies) to ask on the theory. Can be repeated.")),
     cfg.BoolOpt(
+        'pretty',
+        help=("Pretty prints results.")),
+    cfg.BoolOpt(
         'time',
         help=("Print timing of the different phases."))
 ]

@@ -19,6 +19,7 @@ from __future__ import print_function
 import abc
 import getpass
 import ipaddress
+import prettytable
 import sys
 import textwrap
 import time
@@ -296,27 +297,42 @@ class Z3Theory(object):
             atom.args[i].type = atom.table.params[i]
         query = self.compile_atom({}, atom)
         self.context.query(query)
-        types = [self.types[param] for param in atom.table.params]
+        types = [
+            self.types[arg.type]
+            for arg in atom.args
+            if isinstance(arg, ast.Variable)]
+        vars = [
+            arg.id for arg in atom.args if isinstance(arg, ast.Variable)
+        ]
         answer = z3_to_array(self.context.get_answer())
         if type(answer) is bool:
-            return answer
-        return [
+            return vars, answer
+        return vars, [
             [type_x.os(x)
              for type_x, x in moves.zip(types, row)]
             for row in answer]
 
 
-def print_result(query, answers, time):
+def print_result(query, vars, answers, time):
     """Pretty-print the result of a query"""
     print("*" * 80)
     print(query)
     if time is not None:
         print("Query time: {}".format(time))
     print("-" * 80)
-    wrapped = textwrap.wrap(
-        str(answers), initial_indent='    ', subsequent_indent='    ')
-    for line in wrapped:
-        print(line)
+    if cfg.CONF.pretty:
+        if type(answers) == list:
+            pretty = prettytable.PrettyTable(vars)
+            for row in answers:
+                pretty.add_row(row)
+            print(pretty.get_string())
+        else:
+            print('   ' + str(answers))
+    else:
+        wrapped = textwrap.wrap(
+            str(answers), initial_indent='    ', subsequent_indent='    ')
+        for line in wrapped:
+            print(line)
 
 
 def main():
@@ -337,8 +353,8 @@ def main():
         print("Data retrieval: {}".format(time.clock() - start))
     for query in cfg.CONF.query:
         start = time.clock()
-        answers = theory.query(query)
+        vars, answers = theory.query(query)
         print_result(
-            query, answers,
+            query, vars, answers,
             time.clock() - start if time_required else None)
     print("*" * 80)
