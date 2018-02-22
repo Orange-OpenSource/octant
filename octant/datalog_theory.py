@@ -16,9 +16,7 @@
 
 from __future__ import print_function
 
-import abc
 import getpass
-import ipaddress
 import prettytable
 import sys
 import textwrap
@@ -64,95 +62,6 @@ def z3_to_array(expr):
         raise compiler.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Z3Type(object):
-    """Translate Openstack values to Z3"""
-
-    def __init__(self, name, type_instance):
-        self.name = name
-        self.type_instance = type_instance
-
-    @abc.abstractmethod
-    def z3(self, val):
-        """Transforms a value from OpenStack in a Z3 value"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def os(self, val):
-        """Transforms a value from Z3 back to python"""
-        raise NotImplementedError
-
-    def type(self):
-        """Gives back the Z3 type"""
-        return self.type_instance
-
-
-class BoolType(Z3Type):
-    """Transcode boolean in Z3"""
-
-    def __init__(self):
-        super(BoolType, self).__init__('bool', z3.BoolSort())
-
-    def z3(self, val):
-        return z3.BoolVal(val)
-
-    def os(self, val):
-        return val.decl().name() == 'true'
-
-
-class StringType(Z3Type):
-    """Transcode strings in Z3"""
-
-    def __init__(self, name, size=16):
-        super(StringType, self).__init__(name, z3.BitVecSort(size))
-        self.map = {}
-        self.back = {}
-
-    def z3(self, str):
-        if str in self.map:
-            return self.map[str]
-        else:
-            code = len(self.map)
-            val = z3.BitVecVal(code, self.type_instance)
-            self.map[str] = val
-            self.back[code] = str
-            return val
-
-    def os(self, val):
-        return self.back[val.as_long()]
-
-
-class NumType(Z3Type):
-    """Transcode numbers in Z3"""
-
-    def __init__(self, name, size=32):
-        super(NumType, self).__init__(name, z3.BitVecSort(size))
-        self.map = {}
-        self.back = {}
-
-    def z3(self, val):
-        return z3.BitVecVal(val, self.type_instance)
-
-    def os(self, val):
-        return val.as_long()
-
-
-IpAddressSort = z3.BitVecSort(32)
-
-
-class IpAddressType(Z3Type):
-    """Transcode IP address in Z3"""
-
-    def __init__(self):
-        super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
-
-    def z3(self, val):
-        return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
-
-    def os(self, val):
-        return ipaddress.ip_address(val.as_long()).compressed
-
-
 class Z3Theory(object):
     """A theory of Z3 rules."""
 
@@ -170,17 +79,7 @@ class Z3Theory(object):
         context.set(engine='datalog')
         self.context = context
 
-        self.types = {
-            'bool': BoolType(),
-            'string': StringType('string'),
-            'id': StringType('id'),
-            'int': NumType('int'),
-            'int4': NumType('int', size=4),
-            'direction': StringType('direction', size=2),
-            'status': StringType('status', size=3),
-            'ip_address': IpAddressType(),
-            'ip_version': StringType('direction', size=2),
-        }
+        self.types = primitives.TYPES
 
     def build_theory(self):
         self.build_relations()
