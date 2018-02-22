@@ -23,7 +23,7 @@ from octant import datalog_ast as ast
 
 tokens = (
     'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR',
-    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE'
+    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR'
 )
 
 t_EQUAL = r'='
@@ -34,6 +34,8 @@ t_CPAR = r'\)'
 t_OPAR = r'\('
 t_ENTAIL = r':-'
 t_TILDE = r'~'
+t_AMPERSAND = r'&'
+t_BAR = r'\|'
 t_IDENT = r'[a-z][a-zA-Z0-9_]*'
 t_VAR = r'[A-Z][a-zA-Z0-9_]*'
 
@@ -67,6 +69,12 @@ def t_error(t):
     t.lexer.skip(1)
 
 lexer = lex.lex()
+
+precedence = (
+    ('left', 'BAR'),
+    ('left', 'AMPERSAND'),
+    ('right', 'TILDE'),            # Unary not operator
+)
 
 
 def p_rule_list_one(t):
@@ -118,7 +126,7 @@ def p_positive(t):
 
 
 def p_positive_eq(t):
-    'positive : sexpr EQUAL sexpr'
+    'positive : sexpr EQUAL eexpr'
     t[0] = ast.Atom(table='eq', args=[t[1], t[3]])
 
 
@@ -173,6 +181,31 @@ def p_sexpr_string(t):
 def p_sexpr_ident(t):
     'sexpr : IDENT'
     t[0] = ast.Constant(t[1])
+
+
+def p_eexpr_expr(t):
+    'eexpr : sexpr'
+    t[0] = t[1]
+
+
+def p_eexpr_par(t):
+    'eexpr : OPAR eexpr CPAR'
+    t[0] = t[2]
+
+
+def p_eexpr_and(t):
+    'eexpr : eexpr AMPERSAND eexpr'
+    t[0] = ast.Operation('&', [t[1], t[3]])
+
+
+def p_eexpr_or(t):
+    'eexpr : eexpr BAR eexpr'
+    t[0] = ast.Operation('|', [t[1], t[3]])
+
+
+def p_eexpr_not(t):
+    'eexpr : TILDE eexpr'
+    t[0] = ast.Operation('~', [t[2]])
 
 
 def p_error(t):

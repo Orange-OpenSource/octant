@@ -107,6 +107,26 @@ class Variable(Expr):
             self.id = renaming[self.id]
 
 
+class Operation(Expr):
+    "An n-ary operation"
+
+    def __init__(self, op, args, type=None):
+        super(Operation, self).__init__(type=type)
+        self.op = op
+        self.args = args
+        self.var_types = []  # type variable for polymorphic operators.
+
+    def variables(self):
+        return set(v for x in self.args for v in x.variables())
+
+    def rename_variables(self, renaming):
+        for arg in self.args:
+            arg.rename_variables(renaming)
+
+    def __repr__(self):
+        return "{}({})".format(self.op, self.args)
+
+
 class NumConstant(Expr):
     "A numeric constant"
 

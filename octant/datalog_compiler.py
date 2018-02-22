@@ -39,11 +39,11 @@ class Z3Compiler(object):
         self.substitute_constants()
         self.rename_variables()
         self.find_base_relations()
-        typed_tables = typechecker.type(self.rules, self.primitive_tables)
+        typed_tables = typechecker.typeTheory(
+            self.rules, self.primitive_tables)
         return self.primitive_tables, typed_tables
 
-    def substitutes_constants_in_atom(self, atom):
-        args = atom.args
+    def substitutes_constants_in_array(self, args):
         for i in moves.range(len(args)):
             if isinstance(args[i], ast.Constant):
                 arg = self.constants.get(args[i].name, None)
@@ -51,12 +51,16 @@ class Z3Compiler(object):
                     raise Z3NotWellFormed(
                         "Unknown constant: {}", args[i].name)
                 args[i] = arg
+            elif isinstance(args[i], ast.Operation):
+                nb_vars = primitives.OPERATIONS[args[i].op].ty_vars
+                args[i].var_types = [None] * nb_vars
+                self.substitutes_constants_in_array(args[i].args)
 
     def substitute_constants(self):
         for rule in self.rules:
-            self.substitutes_constants_in_atom(rule.head)
+            self.substitutes_constants_in_array(rule.head.args)
             for atom in rule.body:
-                self.substitutes_constants_in_atom(atom)
+                self.substitutes_constants_in_array(atom.args)
 
     def rename_variables(self):
         # WARNING: without nonlocal (python3) known must only be modified by

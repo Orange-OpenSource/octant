@@ -26,7 +26,7 @@ class Z3TypeError(Exception):
         super(Z3TypeError, self).__init__(self, *args, **kwargs)
 
 
-def type(rules, primitive_tables):
+def typeTheory(rules, primitive_tables):
 
     def prepare_typing():
         dict_vars = {}
@@ -38,19 +38,25 @@ def type(rules, primitive_tables):
 
         def subst_var(arg):
             """Makes var instances unique"""
-            if arg.id in dict_vars:
-                var_inst = dict_vars[arg.id]
-                if arg.type is not None:
-                    if var_inst.type is None:
-                        var_inst.type = arg.type
-                    else:
-                        if var_inst.type != arg.type:
-                            raise Z3TypeError(
-                                "Incompatible constraint on {}: {} != {}"
-                                .format(arg.id, var_inst.type, arg.type))
-                return var_inst
+            if isinstance(arg, ast.Variable):
+                if arg.id in dict_vars:
+                    var_inst = dict_vars[arg.id]
+                    if arg.type is not None:
+                        if var_inst.type is None:
+                            var_inst.type = arg.type
+                        else:
+                            if var_inst.type != arg.type:
+                                raise Z3TypeError(
+                                    "Incompatible constraint on {}: {} != {}"
+                                    .format(arg.id, var_inst.type, arg.type))
+                    return var_inst
+                else:
+                    dict_vars[arg.id] = arg
+                    return arg
+            elif isinstance(arg, ast.Operation):
+                arg.args = [subst_var(a) for a in arg.args]
+                return arg
             else:
-                dict_vars[arg.id] = arg
                 return arg
 
         def prepare_atom(atom):
@@ -71,14 +77,63 @@ def type(rules, primitive_tables):
                 dict_tables[atom.table] = typed_table
                 atom.table = typed_table
             atom.args = [
-                subst_var(arg) if isinstance(arg, ast.Variable) else arg
-                for arg in atom.args]
+                subst_var(arg) for arg in atom.args]
 
         for rule in rules:
             prepare_atom(rule.head)
             for atom in rule.body:
                 prepare_atom(atom)
         return dict_tables
+
+    def type_expr(expr):
+        if not isinstance(expr, ast.Operation):
+            return False
+
+        def get_type(scheme):
+            if type(scheme) == int:
+                return expr.var_types[scheme]
+            else:
+                return scheme
+
+        work_done = False
+        schema = primitives.OPERATIONS[expr.op]
+        typ_scheme_res = get_type(schema.result)
+        if expr.type is None:
+            if typ_scheme_res is not None:
+                expr.type = typ_scheme_res
+                work_done = True
+        else:
+            if typ_scheme_res is None:
+                expr.var_types[schema.result] = expr.type
+                work_done = True
+            else:
+                if typ_scheme_res != expr.type:
+                    raise Z3TypeError(
+                        "Type error expresion {} has type {} not {}".format(
+                            expr,
+                            typ_scheme_res,
+                            expr.type))
+        for i in moves.range(len(expr.args)):
+            arg = expr.args[i]
+            if type_expr(arg):
+                work_done = True
+            typ_schema_arg = get_type(schema.args[i])
+            if arg.type is None:
+                if typ_schema_arg is not None:
+                    arg.type = typ_schema_arg
+                    work_done = True
+            else:
+                if typ_schema_arg is None:
+                    expr.var_types[schema.args[i]] = arg.type
+                    work_done = True
+                else:
+                    if typ_schema_arg != arg.type:
+                        raise Z3TypeError(
+                            "Type error: arg {} has type {} not {}".format(
+                                arg,
+                                typ_schema_arg,
+                                arg.type))
+        return work_done
 
     def type_atom(atom):
         params = atom.table.params
@@ -109,12 +164,12 @@ def type(rules, primitive_tables):
             if param0 is None:
                 if param1 is not None:
                     atom.table.params[0] = atom.table.params[1]
-                    atom.args[0] = atom.table.params[1]
+                    atom.args[0].type = atom.table.params[1]
                     work_done = True
             else:
                 if param1 is None:
                     atom.table.params[1] = atom.table.params[0]
-                    atom.args[1] = atom.table.params[0]
+                    atom.args[1].type = atom.table.params[0]
                     work_done = True
                 else:
                     if param0 != param1:
@@ -124,6 +179,9 @@ def type(rules, primitive_tables):
                                 param0,
                                 param1
                             ))
+        for arg in atom.args:
+            if type_expr(arg):
+                work_done = True
         return work_done
     dict_tables = prepare_typing()
     work_done = True

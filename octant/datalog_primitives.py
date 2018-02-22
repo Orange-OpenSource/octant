@@ -161,6 +161,17 @@ def mask_of_network(cidr):
         else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
 
 
+Operation = collections.namedtuple(
+    'Operation',
+    ['args', 'result', 'ty_vars', 'z3'])
+
+OPERATIONS = {
+    "&": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x & y)),
+    "|": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x | y)),
+    "~": Operation(args=[0], result=0, ty_vars=1, z3=(lambda x: x))
+}
+
+
 def get_networks(conn):
     return conn.network.networks()
 

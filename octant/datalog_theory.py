@@ -163,6 +163,10 @@ class Z3Theory(object):
                 self.context.declare_var(var)
                 vars[expr.id] = var
                 return var
+        elif isinstance(expr, ast.Operation):
+            operator = primitives.OPERATIONS[expr.op].z3
+            return operator(
+                *(self.compile_expr(vars, arg) for arg in expr.args))
         else:
             raise compiler.Z3NotWellFormed(
                 "cannot proceed with {}".format(expr))
@@ -184,7 +188,7 @@ class Z3Theory(object):
 
     def query(self, str):
         atom = parser.parse_atom(str)
-        self.compile_instance.substitutes_constants_in_atom(atom)
+        self.compile_instance.substitutes_constants_in_array(atom.args)
         if atom.table not in self.typed_tables:
             raise compiler.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))
