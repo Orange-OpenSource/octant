@@ -130,7 +130,11 @@ Octant will not check that negation is stratified but Z3 will.
 .. productionlist::
    litteral : "~"? positive
    positive : `IDENT` "(" `expr_list` ")"
-            : sexpr "=" sexpr
+            : sexpr "=" eexpr
+            : sexpr ">" eexpr
+            : sexpr ">=" eexpr
+            : sexpr "<" eexpr
+            : sexpr "<=" eexpr
    expr_list : `expr`
              : `expr_list` "," `expr`
 
@@ -152,13 +156,15 @@ either constants or variables. Integers are classical 32 bit integers,
 variable names MUST begin with an upper-case letter.
 Strings must be enclosed between double-quotes and backslash is the escape
 character.
-Finally idents represent octant constants. Existing constants are described 
+Finally idents represent octant constants. Existing constants are described
 in section :ref:`exported-types`.
 
 .. productionlist::
    texpr : `sexpr` ":" `IDENT`
          : `sexpr`
    sexpr : `INTEGER` | `VAR` | `STRING` | `IDENT`
+   eexpr : `eexpr` "|" `expr` | `eexpr` "&" `expr` | '~' `eexpr`
+         : `sexpr`
 
 Datalog Queries
 ===============
@@ -223,6 +229,19 @@ project_id  id       id of owner project
 status      status   status of router
 ==========  =======  =======================
 
+router_route
+------------
+
+===========  ==========  ==========================
+FieldName    Type        Description
+===========  ==========  ==========================
+router_id    id          id of the router
+dest_prefix  ip_address  prefix of destination cidr
+dest_mask    ip_address  mask of destination cidr
+next_hop     ip_address  next hop address
+===========  ==========  ==========================
+
+
 port
 ----
 
@@ -274,6 +293,18 @@ cidr_prefix   ip_address  address part of cidr
 cidr_mask     ip_address  netmask part of cidr
 gateway_ip    ip_address  ip of subnet gateway
 ============  ==========  =======================
+
+subnet_route
+------------
+
+===========  ==========  ========================================
+FieldName    Type        Description
+===========  ==========  ========================================
+subnet_id    id          id of the subnet where the route applies
+dest_prefix  ip_address  prefix of destination cidr
+dest_mask    ip_address  mask of destination cidr
+next_hop     ip_address  next hop address
+===========  ==========  ========================================
 
 subnet_pool
 -----------
