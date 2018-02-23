@@ -150,14 +150,14 @@ def normalize_status(raw):
 
 def prefix_of_network(cidr):
     return (
-        '0.0.0.0' if cidr is None
+        u'0.0.0.0' if cidr is None
         else ipaddress.ip_network(
             cidr, strict=False).network_address.compressed)
 
 
 def mask_of_network(cidr):
     return (
-        '0.0.0.0' if cidr is None
+        u'0.0.0.0' if cidr is None
         else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
 
 
