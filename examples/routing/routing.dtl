@@ -1,0 +1,26 @@
+attached(S, N, SN) :-
+    port(id=P, device_id=S, network_id=N),
+    port_ip(port_id=P, subnet_id=SN).
+
+visible(SN, S) :-
+    attached(S, N, SN).
+
+visible(SN, S) :-
+    gateway(SN, P, D),
+    attached(D, N, SN2),
+    ~SN=SN2,
+    visible(SN2, S).
+
+gateway(SN, P, D) :-
+    port(id=P, device_id=D, network_id=N),
+    port_ip(port_id=P, ip=IP, subnet_id=SN),
+    subnet(id=SN, gateway_ip=IP).
+
+gateway_name(X,Y,Z) :- gateway(A,B,C), subnet(id=A, name=X), port(id=B, name=Y), router(id=C, name=Z).
+
+connect(S1,S2) :- attached(S1, N, SN), visible(SN, S2), ~S1=S2.
+
+connect_name(N1,N2) :-
+    connect(S1,S2),
+    server(id=S1, name=N1),
+    server(id=S2, name=N2).
