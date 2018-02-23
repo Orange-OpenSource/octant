@@ -61,3 +61,5 @@ releasenotes/build
 # Project specific files.
 doc/source/static
 octant/parsetab.py
+samples
+
