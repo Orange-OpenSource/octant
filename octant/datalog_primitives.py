@@ -217,6 +217,22 @@ def _get_subnet_pool_prefixes(conn):
         for prefix in snp.prefixes)
 
 
+def _get_router_routes(conn):
+    return (
+        (r.id, route)
+        for r in conn.network.routers()
+        for route in r.routes
+    )
+
+
+def _get_subnet_routes(conn):
+    return (
+        (sn.id, route)
+        for sn in conn.network.subnets()
+        for route in sn.host_routes
+    )
+
+
 def ip_version(n):
     return 'ipv4' if n == 4 else 'ipv6'
 
@@ -241,6 +257,16 @@ TABLES = {
         "project_id": ("id", lambda r: r.project_id),
         "status": ("status", lambda r: normalize_status(r.status)),
         "name": ("string", lambda r: r.name)
+    }),
+    "router_route": (_get_router_routes, {
+        "router_id": ("id", lambda p: p[0]),
+        "dest_prefix": (
+            "ip_address",
+            lambda p: prefix_of_network(p[1]['destination'])),
+        "dest_mask": (
+            "ip_address",
+            lambda p: mask_of_network(p[1]['destination'])),
+        "next_hop": ("ip_address", lambda p: p[1]['nexthop'])
     }),
     "port": (lambda conn: conn.network.ports(), {
         "id": ("id", lambda p: p.id),
@@ -269,6 +295,16 @@ TABLES = {
         "cidr_mask": ("ip_address", lambda s: mask_of_network(s.cidr)),
         "gateway_ip": ("ip_address", lambda s: s.gateway_ip),
         "ip_version": ("ip_version", lambda s: ip_version(s.ip_version))
+    }),
+    "subnet_route": (_get_subnet_routes, {
+        "subnet_id": ("id", lambda p: p[0]),
+        "dest_prefix": (
+            "ip_address",
+            lambda p: prefix_of_network(p[1]['destination'])),
+        "dest_mask": (
+            "ip_address",
+            lambda p: mask_of_network(p[1]['destination'])),
+        "next_hop": ("ip_address", lambda p: p[1]['nexthop'])
     }),
     "subnet_pool": (lambda conn: conn.network.subnet_pools(), {
         "id": ("id", lambda p: p.id),
