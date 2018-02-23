@@ -65,8 +65,8 @@ def typeTheory(rules, primitive_tables):
             Sustitute table name with a unique table description and
             make var instances unique in arguments.
             """
-            if atom.table == 'eq':
-                atom.table = ast.TypedTable('eq', [None, None])
+            if atom.table in primitives.COMPARISON:
+                atom.table = ast.TypedTable(atom.table, [None, None])
             elif atom.table in dict_tables:
                 atom.table = dict_tables[atom.table]
                 if len(atom.table.params) != len(atom.args):
@@ -158,7 +158,7 @@ def typeTheory(rules, primitive_tables):
                                 param_type,
                                 atom
                             ))
-        if atom.table.name == 'eq':
+        if atom.table.name in primitives.COMPARISON:
             param0 = atom.table.params[0]
             param1 = atom.table.params[1]
             if param0 is None:

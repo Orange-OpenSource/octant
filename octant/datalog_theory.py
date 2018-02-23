@@ -135,18 +135,6 @@ class Z3Theory(object):
         for table_name, fields in six.iteritems(self.primitive_tables):
             self.retrieve_table(conn, table_name, fields)
 
-        # As pylint is a little lost with openstack
-        # pylint: disable=no-member
-        ports = [(p.id, p.network_id, p.device_id)
-                 for p in conn.network.ports()]
-        networks = [(n.id, n.name) for n in conn.network.networks()]
-        routers = [(r.id, r.name) for r in conn.network.routers()]
-        return {
-            'networks': networks,
-            'ports': ports,
-            'routers': routers
-        }
-
     def compile_expr(self, vars, expr):
         if isinstance(expr, ast.NumConstant):
             return self.types['int'].z3(expr.val)
@@ -173,8 +161,8 @@ class Z3Theory(object):
 
     def compile_atom(self, vars, atom):
         args = [self.compile_expr(vars, expr) for expr in atom.args]
-        if atom.table.name == 'eq':
-            compiled_atom = args[0] == args[1]
+        if atom.table.name in primitives.COMPARISON:
+            compiled_atom = primitives.COMPARISON[atom.table.name](args)
         else:
             relation = self.relations[atom.table.name]
             compiled_atom = relation(*args)

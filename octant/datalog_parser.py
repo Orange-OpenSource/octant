@@ -23,7 +23,8 @@ from octant import datalog_ast as ast
 
 tokens = (
     'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR',
-    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR'
+    'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR',
+    'LT', 'LE', 'GT', 'GE'
 )
 
 t_EQUAL = r'='
@@ -38,6 +39,10 @@ t_AMPERSAND = r'&'
 t_BAR = r'\|'
 t_IDENT = r'[a-z][a-zA-Z0-9_]*'
 t_VAR = r'[A-Z][a-zA-Z0-9_]*'
+t_LT = r'<'
+t_GT = r'>'
+t_LE = r'<='
+t_GE = r'>='
 
 
 def t_NUMBER(t):
@@ -68,7 +73,9 @@ def t_error(t):
     print("Illegal character '%s' at line %d" % t.value[0])
     t.lexer.skip(1)
 
+
 lexer = lex.lex()
+
 
 precedence = (
     ('left', 'BAR'),
@@ -126,8 +133,13 @@ def p_positive(t):
 
 
 def p_positive_eq(t):
-    'positive : sexpr EQUAL eexpr'
-    t[0] = ast.Atom(table='eq', args=[t[1], t[3]])
+    '''positive : sexpr EQUAL eexpr
+                | sexpr LT eexpr
+                | sexpr LE eexpr
+                | sexpr GT eexpr
+                | sexpr GE eexpr
+    '''   # noqa: H405
+    t[0] = ast.Atom(table=t[2], args=[t[1], t[3]])
 
 
 def p_expr_list_one(t):
