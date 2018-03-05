@@ -105,6 +105,7 @@ Datalog Grammar
 
 The BNF grammar of the simple Datalog is the following.
 
+Comments begin with a dash and extend to the end of the line.
 A program is a sequence of rules. Each rule is Horn clause terminated by a dot.
 The clause may have a body or not. The body is a list
 of litterals separated by commas and terminated by a dot.
@@ -122,13 +123,13 @@ a list of expressions between parenthesis and separated by commas. Predicate
 identifiers MUST begin with a lower-case letter. A litteral may also be an
 equality.
 
-An optional tilde at the begining of a litteral indicates a negated litteral.
+An optional exclamation mark at the begining of a litteral indicates a negated litteral.
 The use of negation in Datalog is constrained to ensure that there is no
 recursive loops between predicates using negation.
-Octant will not check that negation is stratified but Z3 will.
+Octant will not check that the use of negation is stratified but Z3 will.
 
 .. productionlist::
-   litteral : "~"? positive
+   litteral : "!"? positive
    positive : `IDENT` "(" `expr_list` ")"
             : sexpr "=" eexpr
             : sexpr ">" eexpr
@@ -361,10 +362,10 @@ ip_version         int          4 or 6
 direction          string       direction of the rule
 port_range_max     int          maximum port number
 port_range_min     int          minimum port number
-protocol           strirng      protocol filtered (or -)
+protocol           string       protocol filtered (or -)
 remote_group_id    id           remote group id
 remote_ip_prefix   ip_address   remote ip network prefix
-remote_ip_mask     ip_address   netmask part of remote ip 
+remote_ip_mask     ip_address   netmask part of remote ip
 security_group_id  id           security group id
 project_id         id           id of owner project
 =================  ===========  ========================

@@ -7,7 +7,9 @@
 Welcome to the documentation of octant
 ======================================
 
-Contents:
+.. only:: html
+
+    Contents:
 
 .. toctree::
    :maxdepth: 2
