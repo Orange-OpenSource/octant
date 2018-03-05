@@ -22,7 +22,7 @@ from ply import yacc
 from octant import datalog_ast as ast
 
 tokens = (
-    'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR',
+    'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR', 'BANG',
     'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR',
     'LT', 'LE', 'GT', 'GE'
 )
@@ -36,6 +36,7 @@ t_OPAR = r'\('
 t_ENTAIL = r':-'
 t_TILDE = r'~'
 t_AMPERSAND = r'&'
+t_BANG = r'!'
 t_BAR = r'\|'
 t_IDENT = r'[a-z][a-zA-Z0-9_]*'
 t_VAR = r'[A-Z][a-zA-Z0-9_]*'
@@ -122,7 +123,7 @@ def p_predicate(t):
 
 
 def p_neg_predicate(t):
-    'predicate : TILDE positive'
+    'predicate : BANG positive'
     t[2].negated = True
     t[0] = t[2]
 
