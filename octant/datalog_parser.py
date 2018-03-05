@@ -44,6 +44,7 @@ t_LT = r'<'
 t_GT = r'>'
 t_LE = r'<='
 t_GE = r'>='
+t_ignore_COMMENT = r'\#.*'
 
 
 def t_NUMBER(t):
