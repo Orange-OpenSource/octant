@@ -340,7 +340,8 @@ TABLES = {
         "port_range_min": ("int", (
             lambda p: 0 if p.port_range_min is None else p.port_range_min
         )),
-        "protocol": ("string", (lambda p: p.protocol)),
+        "protocol": ("string", (
+            lambda p: "" if p.protocol is None else p.protocol)),
         "project_id": ("id", lambda p: p.project_id),
         "remote_group_id": ("id", lambda p: p.remote_group_id),
         "remote_ip_prefix": ("ip_address", (
