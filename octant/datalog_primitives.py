@@ -329,7 +329,7 @@ TABLES = {
     }),
     "rule": ((lambda conn: conn.network.security_group_rules(), {
         "id": ("id", lambda p: p.id),
-        "direction": ("string", lambda p: p.direction),
+        "direction": ("direction", lambda p: p.direction),
         "ip_version": (
             "ip_version",
             lambda p: ip_version(4 if p.ether_type == 'IPv4' else 6)
