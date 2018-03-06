@@ -33,7 +33,14 @@ def typeTheory(rules, primitive_tables):
         dict_tables = {}
         # Initialize the types of primitive tables in use.
         for (table, fields) in primitive_tables.items():
-            args = [primitives.TABLES[table][1][field][0] for field in fields]
+            prim = primitives.TABLES[table]
+            if prim is None:
+                raise Z3TypeError("Unknown primitive {}".format(table))
+            try:
+                args = [prim[1][field][0] for field in fields]
+            except KeyError as e:
+                raise Z3TypeError(
+                    "Unknown field {} in table {}".format(e.args[0], table))
             dict_tables[table] = ast.TypedTable(table, args)
 
         def subst_var(arg):
@@ -70,7 +77,10 @@ def typeTheory(rules, primitive_tables):
             elif atom.table in dict_tables:
                 atom.table = dict_tables[atom.table]
                 if len(atom.table.params) != len(atom.args):
-                    raise Z3TypeError("Arity problem for symbol")
+                    raise Z3TypeError(
+                        "Arity problem for symbol {} in {}".format(
+                            atom.table.name,
+                            atom))
             else:
                 params = [None for _ in atom.args]
                 typed_table = ast.TypedTable(atom.table, params)

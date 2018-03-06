@@ -135,11 +135,11 @@ def p_positive(t):
 
 
 def p_positive_eq(t):
-    '''positive : sexpr EQUAL eexpr
-                | sexpr LT eexpr
-                | sexpr LE eexpr
-                | sexpr GT eexpr
-                | sexpr GE eexpr
+    '''positive : texpr EQUAL eexpr
+                | texpr LT eexpr
+                | texpr LE eexpr
+                | texpr GT eexpr
+                | texpr GE eexpr
     '''   # noqa: H405
     t[0] = ast.Atom(table=t[2], args=[t[1], t[3]])
 
@@ -198,7 +198,7 @@ def p_sexpr_ident(t):
 
 
 def p_eexpr_expr(t):
-    'eexpr : sexpr'
+    'eexpr : texpr'
     t[0] = t[1]
 
 

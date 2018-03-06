@@ -34,6 +34,7 @@ from octant import datalog_ast as ast
 from octant import datalog_compiler as compiler
 from octant import datalog_parser as parser
 from octant import datalog_primitives as primitives
+from octant import datalog_typechecker as typechecker
 from octant import options
 
 
@@ -183,7 +184,7 @@ class Z3Theory(object):
         atom.table = self.typed_tables[atom.table]
         if (len(atom.table.params) != len(atom.args)):
             raise compiler.Z3NotWellFormed(
-                "Arity of predicate inconsistency")
+                "Arity of predicate inconsistency in {}".format(atom))
         for i in moves.xrange(len(atom.table.params)):
             atom.args[i].type = atom.table.params[i]
         query = self.compile_atom({}, atom)
@@ -238,14 +239,21 @@ def main():
     if time_required:
         print("Parsing time: {}".format(time.clock() - start))
     start = time.clock()
-    theory = Z3Theory(rules)
-    theory.build_theory()
-    if time_required:
-        print("Data retrieval: {}".format(time.clock() - start))
-    for query in cfg.CONF.query:
-        start = time.clock()
-        vars, answers = theory.query(query)
-        print_result(
-            query, vars, answers,
-            time.clock() - start if time_required else None)
-    print("*" * 80)
+    try:
+        theory = Z3Theory(rules)
+        theory.build_theory()
+        if time_required:
+            print("Data retrieval: {}".format(time.clock() - start))
+        for query in cfg.CONF.query:
+            start = time.clock()
+            vars, answers = theory.query(query)
+            print_result(
+                query, vars, answers,
+                time.clock() - start if time_required else None)
+        print("*" * 80)
+    except compiler.Z3NotWellFormed as e:
+        print("Badly formed program: {}".format(e.args[1]))
+        sys.exit(1)
+    except typechecker.Z3TypeError as e:
+        print("Type error: {}".format(e.args[1]))
+        sys.exit(1)
