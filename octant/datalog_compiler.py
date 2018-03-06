@@ -13,6 +13,7 @@
 #    under the License.
 
 """Transform an AST describing a theory in a Z3 context"""
+import copy
 from six import moves
 
 from octant import datalog_ast as ast
@@ -45,12 +46,15 @@ class Z3Compiler(object):
 
     def substitutes_constants_in_array(self, args):
         for i in moves.range(len(args)):
-            if isinstance(args[i], ast.Constant):
+            oarg = args[i]
+            if isinstance(oarg, ast.Constant):
                 arg = self.constants.get(args[i].name, None)
                 if arg is None:
                     raise Z3NotWellFormed(
                         "Unknown constant: {}", args[i].name)
-                args[i] = arg
+                args[i] = copy.deepcopy(arg)
+                args[i].label = oarg.label
+
             elif isinstance(args[i], ast.Operation):
                 nb_vars = primitives.OPERATIONS[args[i].op].ty_vars
                 args[i].var_types = [None] * nb_vars
