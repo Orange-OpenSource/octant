@@ -89,9 +89,17 @@ class Z3Theory(object):
 
     def build_relations(self):
         for name, typedTable in six.iteritems(self.typed_tables):
-            paramTypes = [
-                self.types[typename].type()
-                for typename in typedTable.params]
+            try:
+                paramTypes = [
+                    self.types[typename].type()
+                    for typename in typedTable.params]
+            except KeyError as e:
+                raise typechecker.Z3TypeError(
+                    "Unknown type {} found for {}: {}".format(
+                        e.args[0],
+                        name,
+                        typedTable.params
+                    ))
             paramTypes.append(z3.BoolSort())
             relation = z3.Function(name, *paramTypes)
             self.context.register_relation(relation)
