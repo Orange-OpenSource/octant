@@ -34,7 +34,7 @@ visible_ip(SN, IP, SN) :-
 # Gateway case.
 visible_ip(SN, IP, SN1) :-
     gateway(SN, P, R),
-    !better_match_subnet(SN, 0:ip_address, IP),
+    !match_subnet(SN, IP),
     visible_router(R, IP, SN1).
 
 # ip IP on SN1 is visible from subnet SN
@@ -42,7 +42,7 @@ visible_ip(SN, IP, SN1) :-
 visible_ip(SN, IP, SN1) :-
     subnet_route(subnet_id=SN, dest_prefix=DP, dest_mask=DM, next_hop=HP),
     DP = IP & DM,
-    # !better_match_subnet(SN, DM, IP),
+    !better_match_subnet(SN, DM, IP),
     port_ip(port_id=P, ip=HP, subnet_id=SN),
     port(id=P, device_id=R2),
     visible_router(R2, IP, SN1).
@@ -69,6 +69,8 @@ gateway(SN, P, R) :-
     port_ip(port_id=P, ip=IP, subnet_id=SN),
     subnet(id=SN, gateway_ip=IP).
 
+# true if there is a route for ip IP on router R that is more specific
+# than the mask M provided.
 better_match_router(R, M, IP) :-
     port_ip(ip=IP), # this is a kludge to avoid Z3 building large tables
     router_route(dest_mask=M),
@@ -76,12 +78,20 @@ better_match_router(R, M, IP) :-
     RP = IP & RM,
     RM > M.
 
+# true if there is a route for ip IP on subnet SN used for default gateway.
+match_subnet(SN, IP) :-
+    port_ip(ip=IP), # this is a kludge to avoid Z3 building large tables.
+    subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
+    RP = IP & RM.
+
+# true if there is a route for ip IP on subnet SN that is more specific
+# than the mask M provided.
 better_match_subnet(SN, M, IP) :-
     port_ip(ip=IP), # this is a kludge to avoid Z3 building large tables.
     subnet_route(dest_mask=M),
     subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
     RP = IP & RM,
-    0:ip_address < RM & ~M.
+    RM > M.
 
 # Traffic allowed if an egress and an ingress rule allow it
 # Beware that filtering is always done on destination port
