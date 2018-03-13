@@ -27,7 +27,6 @@ from six import moves
 import z3
 
 from openstack import connection
-from openstack import profile
 from oslo_config import cfg
 
 from octant import datalog_ast as ast
@@ -126,8 +125,6 @@ class Z3Theory(object):
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
-        prof = profile.Profile()
-        prof.set_region(profile.Profile.ALL, cfg.CONF.region_name)
         password = cfg.CONF.password
         if password == "":
             password = getpass.getpass()
@@ -138,8 +135,8 @@ class Z3Theory(object):
             'password': password,
             'user_domain_name': cfg.CONF.user_domain_name,
             'project_domain_name': cfg.CONF.project_domain_name,
-            'profile': prof}
-        conn = connection.Connection(**auth_args)
+            'region_name': cfg.CONF.region_name}
+        conn = connection.Connection(verify=False, **auth_args)
 
         for table_name, fields in six.iteritems(self.primitive_tables):
             self.retrieve_table(conn, table_name, fields)
