@@ -135,8 +135,9 @@ class Z3Theory(object):
             'password': password,
             'user_domain_name': cfg.CONF.user_domain_name,
             'project_domain_name': cfg.CONF.project_domain_name,
-            'region_name': cfg.CONF.region_name}
-        conn = connection.Connection(verify=False, **auth_args)
+            'region_name': cfg.CONF.region_name,
+            'verify': cfg.CONF.verify}
+        conn = connection.Connection(**auth_args)
 
         for table_name, fields in six.iteritems(self.primitive_tables):
             self.retrieve_table(conn, table_name, fields)

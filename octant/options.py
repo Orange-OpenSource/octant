@@ -25,7 +25,8 @@ OPTIONS = [
     cfg.StrOpt('user_domain_name', default='default', help='Domain name'),
     cfg.StrOpt('project_domain_name', default='default', help='Domain name'),
     cfg.StrOpt('region_name', default='RegionOne', help='Project name'),
-    cfg.StrOpt('password', default='', help='Password of user for connection')
+    cfg.StrOpt('password', default='', help='Password of user for connection'),
+    cfg.BoolOpt('verify', default=True, help='Verification of certificates')
 ]
 
 CLI_OPTIONS = [
