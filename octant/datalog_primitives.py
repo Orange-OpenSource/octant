@@ -322,12 +322,12 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
     }),
-    "sg": (lambda conn: conn.network.security_groups(), {
+    "sg": (lambda conn: conn.network.security_groups(all_tenants=True), {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
         "project_id": ("id", lambda p: p.project_id),
     }),
-    "rule": ((lambda conn: conn.network.security_group_rules(), {
+    "rule": (lambda cnn: cnn.network.security_group_rules(all_tenants=True), {
         "id": ("id", lambda p: p.id),
         "direction": ("direction", lambda p: p.direction),
         "ip_version": (
@@ -351,8 +351,8 @@ TABLES = {
             lambda p: mask_of_network(p.remote_ip_prefix)
         )),
         "security_group_id": ("id", lambda p: p.security_group_id)
-    })),
-    "server": (lambda conn: conn.compute.servers(), {
+    }),
+    "server": (lambda conn: conn.compute.servers(all_tenants=True), {
         "id": ("id", lambda s: s.id),
         "project_id": ("id", lambda s: s.project_id),
         "name": ("string", lambda s: s.name),
