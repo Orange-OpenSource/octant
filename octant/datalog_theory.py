@@ -21,6 +21,7 @@ import prettytable
 import sys
 import textwrap
 import time
+import urllib3
 
 import six
 from six import moves
@@ -137,6 +138,8 @@ class Z3Theory(object):
             'project_domain_name': cfg.CONF.project_domain_name,
             'region_name': cfg.CONF.region_name,
             'verify': cfg.CONF.verify}
+        if not cfg.CONF.verify:
+            urllib3.disable_warnings()
         conn = connection.Connection(**auth_args)
 
         for table_name, fields in six.iteritems(self.primitive_tables):
