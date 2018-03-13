@@ -20,10 +20,10 @@ from octant import version
 OPTIONS = [
     cfg.StrOpt('www_authenticate_uri', default='http://127.0.0.1/identity',
                help='Keystone URI for authentication (as admin).'),
-    cfg.StrOpt('project_name', default='', help='Project name'),
+    cfg.StrOpt('project_name', default=None, help='Project name'),
     cfg.StrOpt('user_name', default='', help='User name'),
     cfg.StrOpt('user_domain_name', default='default', help='Domain name'),
-    cfg.StrOpt('project_domain_name', default='default', help='Domain name'),
+    cfg.StrOpt('project_domain_name', default=None, help='Domain name'),
     cfg.StrOpt('region_name', default='RegionOne', help='Project name'),
     cfg.StrOpt('password', default='', help='Password of user for connection'),
     cfg.BoolOpt('verify', default=True, help='Verification of certificates')
