@@ -176,8 +176,9 @@ class TypedTable(object):
 
 class Constant(object):
     """A constant to be substituted"""
-    def __init__(self, name):
+    def __init__(self, name, label=None):
         self.name = name
+        self.label = label
 
     def __str__(self):
         return self.name
