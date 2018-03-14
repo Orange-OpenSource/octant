@@ -51,7 +51,7 @@ class Z3Compiler(object):
                 arg = self.constants.get(args[i].name, None)
                 if arg is None:
                     raise Z3NotWellFormed(
-                        "Unknown constant: {}", args[i].name)
+                        "Unknown constant: {}".format(args[i].name))
                 args[i] = copy.deepcopy(arg)
                 args[i].label = oarg.label
 
