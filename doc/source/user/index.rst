@@ -37,9 +37,11 @@ Command-line options
 **--theory** *path*
     Path to a Datalog program. This option can be used multiple times
 **--query** *datalog-expression*
-     Text of a single query. This option can be used multiple times.
+    Text of a single query. This option can be used multiple times.
 **--time**
-      Triggers the printing of timing information.
+    Triggers the printing of timing information.
+**--pretty**
+    Pretty prints the result (using tables).
 
 --------------------
 The Datalog Language
@@ -196,6 +198,9 @@ Types and  Constants
     **error** or **other** (for unofficial extensions).
 **direction**
     Direction of a security group rule: either **ingress** or **egress**.
+**fw_action**
+    Action associated to a firewall rule. Either **allow**, **deny**
+    or **reject**.
 
 .. _exported-tables:
 
@@ -368,6 +373,63 @@ remote_ip_prefix   ip_address   remote ip network prefix
 remote_ip_mask     ip_address   netmask part of remote ip
 security_group_id  id           security group id
 project_id         id           id of owner project
+=================  ===========  ========================
+
+firewall_rule
+-------------
+
+==================  ===========  =============================
+FieldName           Type         Description
+==================  ===========  =============================
+id                  id           id of firewall
+name                string       name of firewall
+enabled             bool         if the rule is active
+ip_version          ip_version   ip version
+protocol            string       protocol filtered
+position            int          priority of the rule
+action              fw_action    action taken if rule matches
+firewall_policy_id  id           policy containing the rule
+dest_prefix         ip_address   prefix for destination
+dest_mask           ip_address   mask for destination
+dest_port_min       int          first port for destination
+dest_port_max       int          last port for destination
+source_prefix       ip_address   prefix for source
+source_mask         ip_address   mask for source
+source_port_min     int          first port for source
+source_port_max     int          last port for source
+==================  ===========  =============================
+
+firewall_policy
+---------------
+
+=================  ===========  =============================
+FieldName          Type         Description
+=================  ===========  =============================
+id                 id           firewall policy id
+project_id         id           project containing the policy
+name               string       name of policy
+=================  ===========  =============================
+
+firewall
+--------
+
+=================  ===========  ================================
+FieldName          Type         Description
+=================  ===========  ================================
+id                 id           firewall id
+name               string       name of firewall
+project_id         id           project containing the firewall
+status             status       status of firewall
+=================  ===========  ================================
+
+firewall_router
+---------------
+
+=================  ===========  ========================
+FieldName          Type         Description
+=================  ===========  ========================
+firewall_id        id           firewall id
+router_id          id           router id
 =================  ===========  ========================
 
 Compute (Nova)
