@@ -22,7 +22,7 @@ from ply import yacc
 from octant import datalog_ast as ast
 
 tokens = (
-    'IDENT', 'VAR', 'NUMBER', 'STRING', 'ENTAIL', 'OPAR', 'BANG',
+    'IDENT', 'VAR', 'NUMBER', 'STRING', 'IP', 'ENTAIL', 'OPAR', 'BANG',
     'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR',
     'LT', 'LE', 'GT', 'GE'
 )
@@ -45,6 +45,11 @@ t_GT = r'>'
 t_LE = r'<='
 t_GE = r'>='
 t_ignore_COMMENT = r'\#.*'
+
+
+def t_IP(t):
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+    return t
 
 
 def t_NUMBER(t):
@@ -190,6 +195,11 @@ def p_sexpr_var(t):
 def p_sexpr_string(t):
     'sexpr : STRING'
     t[0] = ast.StringConstant(t[1])
+
+
+def p_sexpr_ip(t):
+    'sexpr : IP'
+    t[0] = ast.IpConstant(t[1])
 
 
 def p_sexpr_ident(t):

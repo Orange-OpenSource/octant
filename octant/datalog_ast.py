@@ -162,6 +162,17 @@ class BoolConstant(Expr):
         return self.str_label(str(self.val))
 
 
+class IpConstant(Expr):
+    "An ip address constant"
+
+    def __init__(self, val, label=None):
+        super(IpConstant, self).__init__(label=label, type='ip_address')
+        self.val = val
+
+    def __repr__(self):
+        return self.str_label(self.val)
+
+
 class TypedTable(object):
     """A table with a name and types of its columns"""
     def __init__(self, name, params=[]):

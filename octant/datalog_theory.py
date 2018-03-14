@@ -172,6 +172,8 @@ class Z3Theory(object):
             return self.types[expr.type].z3(expr.val)
         elif isinstance(expr, ast.BoolConstant):
             return self.types['bool'].z3(expr.val)
+        elif isinstance(expr, ast.IpConstant):
+            return self.types['ip_address'].z3(expr.val)
         elif isinstance(expr, ast.Variable):
             if expr.id in vars:
                 return vars[expr.id]
