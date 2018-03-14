@@ -178,9 +178,9 @@ def port_min(range):
     elif type(range) is int:
         return range
     elif ':' in range:
-        int(range[: range.find(':')])
+        return int(range[: range.find(':')])
     else:
-        int(range)
+        return int(range)
 
 
 def port_max(range):
@@ -189,9 +189,9 @@ def port_max(range):
     elif type(range) is int:
         return range
     elif ':' in range:
-        int(range[range.find(':') + 1:])
+        return int(range[range.find(':') + 1:])
     else:
-        int(range)
+        return int(range)
 
 
 def ip_version(n):
