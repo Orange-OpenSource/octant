@@ -33,11 +33,14 @@ def typeTheory(rules, primitive_tables):
         dict_tables = {}
         # Initialize the types of primitive tables in use.
         for (table, fields) in primitive_tables.items():
-            prim = primitives.TABLES[table]
-            if prim is None:
+            if table in primitives.TABLES:
+                prim = primitives.TABLES[table][1]
+            elif table in primitives.NEUTRON_TABLES:
+                prim = primitives.NEUTRON_TABLES[table][1]
+            else:
                 raise Z3TypeError("Unknown primitive {}".format(table))
             try:
-                args = [prim[1][field][0] for field in fields]
+                args = [prim[field][0] for field in fields]
             except KeyError as e:
                 raise Z3TypeError(
                     "Unknown field {} in table {}".format(e.args[0], table))

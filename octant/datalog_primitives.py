@@ -123,6 +123,7 @@ TYPES = {
     'status': StringType('status', size=3),
     'ip_address': IpAddressType(),
     'ip_version': StringType('direction', size=2),
+    'fw_action': StringType('direction', size=2)
 }
 
 
@@ -151,6 +152,10 @@ def normalize_status(raw):
 
 
 def prefix_of_network(cidr):
+    """Returns the prefix of a network in CIDR format
+
+    If cidr is a single address, returns that address.
+    """
     return (
         u'0.0.0.0' if cidr is None
         else ipaddress.ip_network(
@@ -158,9 +163,50 @@ def prefix_of_network(cidr):
 
 
 def mask_of_network(cidr):
+    """Returns the mask of a network in CIDR format
+
+    If cidr is a single address, the mask will be 255.255.255.255
+    """
     return (
         u'0.0.0.0' if cidr is None
         else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
+
+
+def port_min(range):
+    if range is None:
+        return 1
+    elif type(range) is int:
+        return range
+    elif ':' in range:
+        int(range[: range.find(':')])
+    else:
+        int(range)
+
+
+def port_max(range):
+    if range is None:
+        return 65535
+    elif type(range) is int:
+        return range
+    elif ':' in range:
+        int(range[range.find(':') + 1:])
+    else:
+        int(range)
+
+
+def ip_version(n):
+    return 'ipv4' if n == 4 else 'ipv6'
+
+
+def fw_action(raw):
+    """Normalize firewall action
+
+    Gives back a value between allow, deny, reject and other
+    """
+    lower = raw.lower()
+    if lower in ['allow', 'deny', 'reject']:
+        return lower
+    return 'other'
 
 
 Operation = collections.namedtuple(
@@ -192,6 +238,9 @@ CONSTANTS = {
     "build": ast.StringConstant('build', type='status'),
     "error": ast.StringConstant('error', type='status'),
     "other": ast.StringConstant('other', type='status'),
+    "allow": ast.StringConstant('allow', type='fw_action'),
+    "reject": ast.StringConstant('reject', type='fw_action'),
+    "deny": ast.StringConstant('deny', type='fw_action'),
     "true": ast.BoolConstant(True),
     "false": ast.BoolConstant(False)
 }
@@ -233,10 +282,6 @@ def _get_subnet_routes(conn):
         for sn in conn.network.subnets()
         for route in sn.host_routes
     )
-
-
-def ip_version(n):
-    return 'ipv4' if n == 4 else 'ipv6'
 
 
 def _project_scope(p):
@@ -434,6 +479,85 @@ TABLES = {
 }
 
 
+def _get_firewall_routers(ncn):
+    return (
+        (fw['id'], router)
+        for fw in ncn.list_firewalls()['firewalls']
+        for router in fw['router_ids']
+    )
+
+
+NEUTRON_TABLES = {
+    "firewall": (
+        lambda ncn: ncn.list_firewalls()['firewalls'],
+        {
+            "id": ("id", lambda fw: fw['id']),
+            "project_id": ("id", lambda fw: fw['tenant_id']),
+            "status": ("status", lambda fw: normalize_status(fw['status'])),
+            "name": ("string", lambda fw: fw['name'])
+        }
+    ),
+    "firewall_policy": (
+        lambda ncn: ncn.list_firewall_policies()['firewall_policies'],
+        {
+            "id": ("id", lambda fw: fw['id']),
+            "project_id": ("id", lambda fw: fw['tenant_id']),
+            "name": ("string", lambda fw: fw['name'])
+        }
+    ),
+    "firewall_rule": (
+        lambda ncn: ncn.list_firewall_rules()['firewall_rules'],
+        {
+            "id": ("id", lambda fwr: fwr['id']),
+            "protocol": (
+                "string",
+                lambda fr: "" if fr['protocol'] is None else fr['protocol']),
+            "ip_version": (
+                "ip_version",
+                lambda fwr: ip_version(fwr['ip_version'])),
+            "position": (
+                "int",
+                lambda fr: 0 if fr['position'] is None else fr['position']),
+            "action": (
+                "fw_action",
+                lambda fwr: fw_action(fwr['action']),
+            ),
+            "firewall_policy_id": ("id", lambda fr: fr['firewall_policy_id']),
+            "dest_prefix": (
+                "ip_address",
+                lambda fw: prefix_of_network(fw['destination_ip_address'])),
+            "dest_mask": (
+                "ip_address",
+                lambda fw: mask_of_network(fw['destination_ip_address'])),
+            "dest_port_min": (
+                "int",
+                lambda fr: port_min(fr['destination_port'])),
+            "dest_port_max": (
+                "int",
+                lambda fr: port_max(fr['destination_port'])),
+            "source_prefix": (
+                "ip_address",
+                lambda fw: prefix_of_network(fw['source_ip_address'])),
+            "source_mask": (
+                "ip_address",
+                lambda fw: mask_of_network(fw['source_ip_address'])),
+            "source_port_min": (
+                "int",
+                lambda fr: port_min(fr['source_port'])),
+            "source_port_max": (
+                "int",
+                lambda fr: port_max(fr['source_port'])),
+            "name": ("string", lambda fw: fw['name']),
+            "enabled": ("bool", lambda fw: fw['enabled'])
+        }
+    ),
+    "firewall_router": (_get_firewall_routers, {
+        "firewall_id": ('id', lambda fr: fr[0]),
+        "router_id": ('id', lambda fr: fr[1])
+    })
+}
+
+
 def is_primitive_atom(atom):
     "Check if a atom refers to a primitive table."
-    return atom.table in TABLES
+    return atom.table in TABLES or atom.table in NEUTRON_TABLES
