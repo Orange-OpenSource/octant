@@ -19,6 +19,8 @@ import ipaddress
 import six
 import z3
 
+from oslo_config import cfg
+
 from octant import datalog_ast as ast
 
 
@@ -322,44 +324,48 @@ TABLES = {
         "id": ("id", lambda p: p.id),
         "name": ("string", lambda p: p.name),
     }),
-    "sg": (lambda conn: conn.network.security_groups(all_tenants=True), {
-        "id": ("id", lambda p: p.id),
-        "name": ("string", lambda p: p.name),
-        "project_id": ("id", lambda p: p.project_id),
-    }),
-    "rule": (lambda cnn: cnn.network.security_group_rules(all_tenants=True), {
-        "id": ("id", lambda p: p.id),
-        "direction": ("direction", lambda p: p.direction),
-        "ip_version": (
-            "ip_version",
-            lambda p: ip_version(4 if p.ether_type == 'IPv4' else 6)
-        ),
-        "port_range_max": ("int", (
-            lambda p: 65536 if p.port_range_max is None else p.port_range_max
-        )),
-        "port_range_min": ("int", (
-            lambda p: 0 if p.port_range_min is None else p.port_range_min
-        )),
-        "protocol": ("string", (
-            lambda p: "" if p.protocol is None else p.protocol)),
-        "project_id": ("id", lambda p: p.project_id),
-        "remote_group_id": ("id", lambda p: p.remote_group_id),
-        "remote_ip_prefix": ("ip_address", (
-            lambda p: prefix_of_network(p.remote_ip_prefix)
-        )),
-        "remote_ip_mask": ("ip_address", (
-            lambda p: mask_of_network(p.remote_ip_prefix)
-        )),
-        "security_group_id": ("id", lambda p: p.security_group_id)
-    }),
-    "server": (lambda conn: conn.compute.servers(all_tenants=True), {
-        "id": ("id", lambda s: s.id),
-        "project_id": ("id", lambda s: s.project_id),
-        "name": ("string", lambda s: s.name),
-        "host": ("string", lambda s: s.hypervisor_hostname),
-        "image_id": ("id", lambda s: s.image['id']),
-        "flavor_id": ("id", lambda s: s.flavor['id'])
-    }),
+    "sg": (
+        lambda conn: conn.network.security_groups(
+            all_tenants=cfg.CONF.all_projects),
+        {"id": ("id", lambda p: p.id),
+         "name": ("string", lambda p: p.name),
+         "project_id": ("id", lambda p: p.project_id)}
+    ),
+    "rule": (
+        lambda cnn: cnn.network.security_group_rules(
+            all_tenants=cfg.CONF.all_projects),
+        {"id": ("id", lambda p: p.id),
+         "direction": ("direction", lambda p: p.direction),
+         "ip_version": (
+             "ip_version",
+             lambda p: ip_version(4 if p.ether_type == 'IPv4' else 6)),
+         "port_range_max": ("int", (
+             lambda p: 65536 if p.port_range_max is None else p.port_range_max
+         )),
+         "port_range_min": ("int", (
+             lambda p: 0 if p.port_range_min is None else p.port_range_min
+         )),
+         "protocol": ("string", (
+             lambda p: "" if p.protocol is None else p.protocol)),
+         "project_id": ("id", lambda p: p.project_id),
+         "remote_group_id": ("id", lambda p: p.remote_group_id),
+         "remote_ip_prefix": ("ip_address", (
+             lambda p: prefix_of_network(p.remote_ip_prefix)
+         )),
+         "remote_ip_mask": ("ip_address", (
+             lambda p: mask_of_network(p.remote_ip_prefix)
+         )),
+         "security_group_id": ("id", lambda p: p.security_group_id)}
+    ),
+    "server": (
+        lambda conn: conn.compute.servers(all_tenants=cfg.CONF.all_projects),
+        {"id": ("id", lambda s: s.id),
+         "project_id": ("id", lambda s: s.project_id),
+         "name": ("string", lambda s: s.name),
+         "host": ("string", lambda s: s.hypervisor_hostname),
+         "image_id": ("id", lambda s: s.image['id']),
+         "flavor_id": ("id", lambda s: s.flavor['id'])}
+    ),
     "flavor": (lambda conn: conn.compute.flavors(), {
         "id": ("id", lambda f: f.id),
         "name": ("string", lambda f: f.name),

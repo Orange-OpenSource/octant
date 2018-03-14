@@ -26,7 +26,9 @@ OPTIONS = [
     cfg.StrOpt('project_domain_name', default=None, help='Domain name'),
     cfg.StrOpt('region_name', default='RegionOne', help='Project name'),
     cfg.StrOpt('password', default='', help='Password of user for connection'),
-    cfg.BoolOpt('verify', default=True, help='Verification of certificates')
+    cfg.BoolOpt('verify', default=True, help='Verification of certificates'),
+    cfg.BoolOpt('all_projects', default=True,
+                help='Gives back results for all tenants')
 ]
 
 CLI_OPTIONS = [
