@@ -47,6 +47,8 @@ t_GE = r'>='
 t_ignore_COMMENT = r'\#.*'
 
 
+# IP rule must have higher precedence than NUMBER. It must be specified
+# before NUMBER and must be a function not a simple token.
 def t_IP(t):
     r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
     return t
