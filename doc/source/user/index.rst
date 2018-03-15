@@ -388,7 +388,7 @@ ip_version          ip_version   ip version
 protocol            string       protocol filtered
 position            int          priority of the rule
 action              fw_action    action taken if rule matches
-firewall_policy_id  id           policy containing the rule
+policy_id           id           policy containing the rule
 dest_prefix         ip_address   prefix for destination
 dest_mask           ip_address   mask for destination
 dest_port_min       int          first port for destination

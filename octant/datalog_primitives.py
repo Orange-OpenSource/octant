@@ -523,7 +523,7 @@ NEUTRON_TABLES = {
                 "fw_action",
                 lambda fwr: fw_action(fwr['action']),
             ),
-            "firewall_policy_id": ("id", lambda fr: fr['firewall_policy_id']),
+            "policy_id": ("id", lambda fr: fr['firewall_policy_id']),
             "dest_prefix": (
                 "ip_address",
                 lambda fw: prefix_of_network(fw['destination_ip_address'])),
