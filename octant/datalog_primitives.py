@@ -494,6 +494,7 @@ NEUTRON_TABLES = {
             "id": ("id", lambda fw: fw['id']),
             "project_id": ("id", lambda fw: fw['tenant_id']),
             "status": ("status", lambda fw: normalize_status(fw['status'])),
+            "policy_id": ("id", lambda fw: fw['firewall_policy_id']),
             "name": ("string", lambda fw: fw['name'])
         }
     ),

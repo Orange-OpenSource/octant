@@ -419,6 +419,7 @@ FieldName          Type         Description
 id                 id           firewall id
 name               string       name of firewall
 project_id         id           project containing the firewall
+policy_id          id           name of policy associated
 status             status       status of firewall
 =================  ===========  ================================
 
