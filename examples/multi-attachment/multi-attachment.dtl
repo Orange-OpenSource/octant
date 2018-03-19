@@ -1,0 +1,27 @@
+####################### Network roots ############################
+root1("N1").
+root2("N2").
+
+## Linked networks are connected by a router.
+linked(X,Y) :-
+    port(id=Z, network_id=X, device_id=T),
+    router(id=T, name=U),
+    port(id=V, network_id=Y, device_id=T).
+
+## Scope of networks defined by root1
+connect1(X) :- network(id=X, name=Y), root1(Y).
+connect1(X) :- linked(X, Y), connect1(Y).
+# VM connected to that scope
+connectVM1(X) :- port(id=Z, network_id=Y, device_id=X), connect1(Y).
+# Back to names.
+connectName1(Y) :- network(id=X, name=Y), connect1(X).
+
+## Scope  of networks defined by root2
+connect2(X) :- network(id=X, name=Y), root2(Y).
+connect2(X) :- linked(X, Y), connect2(Y).
+connectVM2(X) :- port(id=Z, network_id=Y, device_id=X), connect2(Y).
+connectName2(Y) :- network(id=X, name=Y), connect2(X).
+
+## Double attachment.
+doubleAttach(Y):- connectVM1(X), connectVM2(X), server(id=X, name=Y).
+
