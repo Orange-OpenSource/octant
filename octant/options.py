@@ -32,18 +32,12 @@ OPTIONS = [
 ]
 
 CLI_OPTIONS = [
+    cfg.MultiStrOpt('theory', help="Name of theory file to load"),
     cfg.MultiStrOpt(
-        'theory',
-        help=("Name of theory file to load")),
-    cfg.MultiStrOpt(
-        'query',
-        help=("Query(ies) to ask on the theory. Can be repeated.")),
-    cfg.BoolOpt(
-        'pretty',
-        help=("Pretty prints results.")),
-    cfg.BoolOpt(
-        'time',
-        help=("Print timing of the different phases."))
+        'query', help="Query(ies) to ask on the theory. Can be repeated."),
+    cfg.BoolOpt('pretty', help="Pretty prints results."),
+    cfg.BoolOpt('csv', help="Output as csv file."),
+    cfg.BoolOpt('time', help="Print timing of the different phases.")
 ]
 
 cfg.CONF.register_opts(OPTIONS)

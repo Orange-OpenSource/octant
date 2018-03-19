@@ -16,6 +16,7 @@
 
 from __future__ import print_function
 
+import csv
 import getpass
 import prettytable
 import sys
@@ -236,6 +237,18 @@ class Z3Theory(object):
             for row in answer]
 
 
+def print_csv(vars, answers):
+    """Print the result of a query in excel csv format"""
+    if type(answers) == list:
+        csvwriter = csv.writer(sys.stdout)
+        csvwriter.writerow(vars)
+        for row in answers:
+            csvwriter.writerow(row)
+    else:
+        print(str(answers))
+    print()
+
+
 def print_result(query, vars, answers, time):
     """Pretty-print the result of a query"""
     print("*" * 80)
@@ -263,6 +276,11 @@ def main():
     args = sys.argv[1:]
     options.init(args)
     time_required = cfg.CONF.time
+    csv = cfg.CONF.csv
+    pretty = cfg.CONF.pretty
+    if csv and (time_required or pretty):
+        print("Cannot use option --csv with --time or --pretty.")
+        sys.exit(1)
     rules = []
     start = time.clock()
     for rule_file in cfg.CONF.theory:
@@ -278,10 +296,14 @@ def main():
         for query in cfg.CONF.query:
             start = time.clock()
             vars, answers = theory.query(query)
-            print_result(
-                query, vars, answers,
-                time.clock() - start if time_required else None)
-        print("*" * 80)
+            if csv:
+                print_csv(vars, answers)
+            else:
+                print_result(
+                    query, vars, answers,
+                    time.clock() - start if time_required else None)
+        if not(csv):
+            print("*" * 80)
     except compiler.Z3NotWellFormed as e:
         print("Badly formed program: {}".format(e.args[1]))
         sys.exit(1)
