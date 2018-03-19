@@ -340,7 +340,9 @@ TABLES = {
         "project_id": ("id", lambda p: p.project_id),
         "cidr_prefix": ("ip_address", lambda s: prefix_of_network(s.cidr)),
         "cidr_mask": ("ip_address", lambda s: mask_of_network(s.cidr)),
-        "gateway_ip": ("ip_address", lambda s: s.gateway_ip),
+        "gateway_ip": (
+            "ip_address",
+            lambda s: s.gateway_ip if s.gateway_ip is not None else "0.0.0.0"),
         "ip_version": ("ip_version", lambda s: ip_version(s.ip_version))
     }),
     "subnet_route": (_get_subnet_routes, {
