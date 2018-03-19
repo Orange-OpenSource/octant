@@ -250,10 +250,12 @@ parser = yacc.yacc(write_tables=False, debug=False)
 
 
 def parse_atom(str):
+    lexer.lineno = 0
     rules = parser.parse(str + ".")
     return rules[0].head
 
 
 def parse_file(filename):
     with open(filename) as file:
+        lexer.lineno = 0
         return parser.parse(file.read())
