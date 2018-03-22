@@ -29,11 +29,9 @@ from six import moves
 import z3
 
 from keystoneauth1 import identity
-from keystoneauth1 import session as keysession
+from keystoneauth1 import session
 from neutronclient.v2_0 import client as neutronclient
 from openstack import connection
-from openstack import profile
-from openstack import session
 from oslo_config import cfg
 
 from octant import datalog_ast as ast
@@ -140,8 +138,6 @@ class Z3Theory(object):
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
-        prof = profile.Profile()
-        prof.set_region(profile.Profile.ALL, cfg.CONF.region_name)
         password = cfg.CONF.password
         if password == "":
             password = getpass.getpass()
@@ -150,18 +146,15 @@ class Z3Theory(object):
             'project_name': cfg.CONF.project_name,
             'username': cfg.CONF.user_name,
             'password': password,
-            'user_domain_id': cfg.CONF.user_domain_name,
-            'project_domain_id': cfg.CONF.project_domain_name,
+            'user_domain_name': cfg.CONF.user_domain_name,
+            'project_domain_name': cfg.CONF.project_domain_name,
         }
         if not cfg.CONF.verify:
             urllib3.disable_warnings()
         auth = identity.Password(**auth_args)
-        sess = session.Session(prof, auth=auth, verify=cfg.CONF.verify)
-        sess2 = keysession.Session(auth=auth, verify=cfg.CONF.verify)
-        conn = connection.Connection(
-            session=sess,
-            region_name=cfg.CONF.region_name)
-        neutron_cnx = neutronclient.Client(session=sess2)
+        sess = session.Session(auth=auth, verify=cfg.CONF.verify)
+        conn = connection.Connection(session=sess)
+        neutron_cnx = neutronclient.Client(session=sess)
 
         for table_name, fields in six.iteritems(self.primitive_tables):
             self.retrieve_table(conn, neutron_cnx, table_name, fields)
