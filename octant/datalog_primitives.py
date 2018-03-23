@@ -372,15 +372,13 @@ TABLES = {
         "name": ("string", lambda p: p.name),
     }),
     "sg": (
-        lambda conn: conn.network.security_groups(
-            all_tenants=cfg.CONF.all_projects),
+        lambda conn: conn.network.security_groups(),
         {"id": ("id", lambda p: p.id),
          "name": ("string", lambda p: p.name),
          "project_id": ("id", lambda p: p.project_id)}
     ),
     "rule": (
-        lambda cnn: cnn.network.security_group_rules(
-            all_tenants=cfg.CONF.all_projects),
+        lambda cnn: cnn.network.security_group_rules(),
         {"id": ("id", lambda p: p.id),
          "direction": ("direction", lambda p: p.direction),
          "ip_version": (
