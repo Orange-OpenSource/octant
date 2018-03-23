@@ -42,6 +42,16 @@ class Z3Type(object):
         """Transforms a value from Z3 back to python"""
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def marshall(self, val):
+        """Transforms a value from OpenStack in a string or int."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def unmarshall(self, str):
+        """Transforms back a string to a raw OpenStack value."""
+        raise NotImplementedError
+
     def type(self):
         """Gives back the Z3 type"""
         return self.type_instance
@@ -55,6 +65,12 @@ class BoolType(Z3Type):
 
     def z3(self, val):
         return z3.BoolVal(val)
+
+    def marshall(self, val):
+        return str(val)
+
+    def unmarshall(self, val):
+        return val == 'True'
 
     def os(self, val):
         return val.decl().name() == 'true'
@@ -78,6 +94,12 @@ class StringType(Z3Type):
             self.back[code] = str
             return val
 
+    def marshall(self, val):
+        return '--NONE--' if val is None else val
+
+    def unmarshall(self, val):
+        return None if val == '--NONE--' else val
+
     def os(self, val):
         return self.back[val.as_long()]
 
@@ -92,6 +114,12 @@ class NumType(Z3Type):
 
     def z3(self, val):
         return z3.BitVecVal(val, self.type_instance)
+
+    def marshall(self, val):
+        return val
+
+    def unmarshall(self, val):
+        return val
 
     def os(self, val):
         return val.as_long()
@@ -108,6 +136,12 @@ class IpAddressType(Z3Type):
 
     def z3(self, val):
         return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
+
+    def marshall(self, val):
+        return '--NONE--' if val is None else val
+
+    def unmarshall(self, val):
+        return None if val == '--NONE--' else val
 
     def os(self, val):
         return ipaddress.ip_address(val.as_long()).compressed

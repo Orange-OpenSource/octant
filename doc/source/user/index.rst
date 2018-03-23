@@ -21,6 +21,10 @@ Here is a typical octant invocation:
 octant uses Z3 as back-end, a very fast SMT solver developped by Z3 that offers
 a Datalog engine as an option.
 
+Octant can also save and use backup files instead of an actual cloud as datasource.
+Please keep in mind that backup files only contain values for fields that were
+actually used by the theory loaded when the file was created.
+
 ------------------
 Configuration file
 ------------------
@@ -42,6 +46,11 @@ Command-line options
     Triggers the printing of timing information.
 **--pretty**
     Pretty prints the result (using tables).
+**--save** *file*
+    Tell octant to save the values queried on the OpenStack cloud to a backup
+    in *file*.
+**--restore** *file*
+    Tell octant to use the backup in *file* instead of querying an actual cloud.
 
 --------------------
 The Datalog Language

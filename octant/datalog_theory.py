@@ -109,13 +109,22 @@ class Z3Theory(object):
             self.context.register_relation(relation)
             self.relations[name] = relation
 
-    def retrieve_table(self, conn, neutron, table_name, fields):
+    def retrieve_table(self, datasource, writer, table_name, fields):
+        use_cache = type(datasource) == dict
         if table_name in primitives.TABLES:
             accessor, fields_descr = primitives.TABLES[table_name]
-            objs = accessor(conn)
+            if use_cache:
+                (index, objs) = datasource.get(table_name, [])
+            else:
+                index = None
+                objs = accessor(datasource[0])
         elif table_name in primitives.NEUTRON_TABLES:
             accessor, fields_descr = primitives.NEUTRON_TABLES[table_name]
-            objs = accessor(neutron)
+            if use_cache:
+                (index, objs) = datasource.get(table_name, [])
+            else:
+                index = None
+                objs = accessor(datasource[1])
         else:
             raise typechecker.Z3TypeError(
                 'Unknown primitive relation {}'.format(table_name))
@@ -124,13 +133,36 @@ class Z3Theory(object):
         def get_field(field):
             type_name, access = fields_descr[field]
             type = self.types[type_name]
-            return lambda x: type.z3(access(x))
+            return (type.z3, access)
 
-        access_fields = [get_field(field) for field in fields]
+        def get_field_from_cache(field):
+            type_name, _ = fields_descr[field]
+            type = self.types[type_name]
+            print(index)
+            print(field)
+            try:
+                pos = index.index(field)
+            except ValueError:
+                raise compiler.Z3NotWellFormed(
+                    "Field {} was not saved for table {}".format(
+                        field,
+                        table_name))
+            return (type.z3, lambda row: type.unmarshall(row[pos]))
+
+        if use_cache:
+            access_fields = [get_field_from_cache(field) for field in fields]
+        else:
+            access_fields = [get_field(field) for field in fields]
+        if writer is not None:
+            writer.writerow([table_name] + fields)
         for obj in objs:
             try:
+                extracted = [(typ, acc(obj)) for (typ, acc) in access_fields]
+                if writer is not None:
+                    writer.writerow(
+                        [table_name] + [str(raw) for (_, raw) in extracted])
                 self.context.fact(relation(
-                    *[acc(obj) for acc in access_fields]))
+                    *[typ(raw) for (typ, raw) in extracted]))
             except Exception as e:
                 print("Error while retrieving table {} on {}".format(
                     table_name, obj))
@@ -138,26 +170,50 @@ class Z3Theory(object):
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
-        password = cfg.CONF.password
-        if password == "":
-            password = getpass.getpass()
-        auth_args = {
-            'auth_url': cfg.CONF.www_authenticate_uri,
-            'project_name': cfg.CONF.project_name,
-            'username': cfg.CONF.user_name,
-            'password': password,
-            'user_domain_name': cfg.CONF.user_domain_name,
-            'project_domain_name': cfg.CONF.project_domain_name,
-        }
-        if not cfg.CONF.verify:
-            urllib3.disable_warnings()
-        auth = identity.Password(**auth_args)
-        sess = session.Session(auth=auth, verify=cfg.CONF.verify)
-        conn = connection.Connection(session=sess)
-        neutron_cnx = neutronclient.Client(session=sess)
+        if cfg.CONF.restore is not None:
+            with open(cfg.CONF.restore, 'r') as csvfile:
+                csvreader = csv.reader(csvfile)
+                backup = {}
+                current = ''
+                table = []
+                for row in csvreader:
+                    tablename = row[0]
+                    if tablename != current:
+                        table = []
+                        current = tablename
+                        backup[tablename] = (row[1:], table)
+                    else:
+                        table.append(row[1:])
+            datasource = backup
+        else:
+            password = cfg.CONF.password
+            if password == "":
+                password = getpass.getpass()
+            auth_args = {
+                'auth_url': cfg.CONF.www_authenticate_uri,
+                'project_name': cfg.CONF.project_name,
+                'username': cfg.CONF.user_name,
+                'password': password,
+                'user_domain_name': cfg.CONF.user_domain_name,
+                'project_domain_name': cfg.CONF.project_domain_name,
+            }
+            if not cfg.CONF.verify:
+                urllib3.disable_warnings()
+            auth = identity.Password(**auth_args)
+            sess = session.Session(auth=auth, verify=cfg.CONF.verify)
+            conn = connection.Connection(session=sess)
+            neutron_cnx = neutronclient.Client(session=sess)
+            datasource = (conn, neutron_cnx)
+        if cfg.CONF.save is not None:
+            with open(cfg.CONF.save, mode='w') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                self.retrieve_data_with_cnx(datasource, csv_writer)
+        else:
+            self.retrieve_data_with_cnx(datasource, None)
 
+    def retrieve_data_with_cnx(self, datasource, save_cnx):
         for table_name, fields in six.iteritems(self.primitive_tables):
-            self.retrieve_table(conn, neutron_cnx, table_name, fields)
+            self.retrieve_table(datasource, save_cnx, table_name, fields)
 
     def compile_expr(self, vars, expr):
         if isinstance(expr, ast.NumConstant):

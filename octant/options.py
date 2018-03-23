@@ -35,6 +35,10 @@ CLI_OPTIONS = [
     cfg.MultiStrOpt('theory', help="Name of theory file to load"),
     cfg.MultiStrOpt(
         'query', help="Query(ies) to ask on the theory. Can be repeated."),
+    cfg.StrOpt('save', default=None, help='Create a backup file'),
+    cfg.StrOpt(
+        'restore', default=None,
+        help='Use a backup file instead of a connection'),
     cfg.BoolOpt('pretty', help="Pretty prints results."),
     cfg.BoolOpt('csv', help="Output as csv file."),
     cfg.BoolOpt('time', help="Print timing of the different phases.")
