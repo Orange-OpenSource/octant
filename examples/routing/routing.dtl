@@ -49,16 +49,13 @@ known_port(443).
 known_port(8000).
 known_port(1000).
 known_port(X) :- rule(port_range_min=X).
-known_port(X) :- firewall_rule(source_port_min=X).
-known_port(X) :- firewall_rule(dest_port_min=X).
 
 # For protocols list a few known protocols and augment it with what is in the
 # tables
-known_protocol("tchp").
+known_protocol("tcp").
 known_protocol("udp").
 known_protocol("icmp").
 known_protocol(X) :- rule(protocol=X).
-known_protocol(X) :- firewall_rule(protocol=X).
 
 ############################### CORE ##############################
 # DN1 can connect to DN2 over port number PN for protocole PRO.
@@ -82,6 +79,9 @@ attached(D, N, SN) :-
 attached_ip(SN, D, P, IP) :-
     port(id=P, device_id=D),
     port_ip(port_id=P, subnet_id=SN, ip=IP).
+
+p(X,Y) :- port(id=X, device_id=Y).
+q(P,SN,IP) :- port_ip(port_id=P, subnet_id=SN, ip=IP).
 
 # Device D is visible from subnet SN if one of its port (and ip) is visible.
 visible(SN, D, P, DIP) :-
