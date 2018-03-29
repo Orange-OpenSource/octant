@@ -133,7 +133,7 @@ class Z3Theory(object):
         def get_field(field):
             type_name, access = fields_descr[field]
             type = self.types[type_name]
-            return (type.z3, access)
+            return (type.z3, access, type.marshall)
 
         def get_field_from_cache(field):
             type_name, _ = fields_descr[field]
@@ -147,7 +147,10 @@ class Z3Theory(object):
                     "Field {} was not saved for table {}".format(
                         field,
                         table_name))
-            return (type.z3, lambda row: type.unmarshall(row[pos]))
+            return (
+                type.z3,
+                lambda row: type.unmarshall(row[pos]),
+                type.marshall)
 
         if use_cache:
             access_fields = [get_field_from_cache(field) for field in fields]
@@ -157,12 +160,15 @@ class Z3Theory(object):
             writer.writerow([table_name] + fields)
         for obj in objs:
             try:
-                extracted = [(typ, acc(obj)) for (typ, acc) in access_fields]
+                extracted = [
+                    (typ, acc(obj), marshall)
+                    for (typ, acc, marshall) in access_fields]
                 if writer is not None:
                     writer.writerow(
-                        [table_name] + [str(raw) for (_, raw) in extracted])
+                        [table_name] +
+                        [marshall(raw) for (_, raw, marshall) in extracted])
                 self.context.fact(relation(
-                    *[typ(raw) for (typ, raw) in extracted]))
+                    *[typ(raw) for (typ, raw, _) in extracted]))
             except Exception as e:
                 print("Error while retrieving table {} on {}".format(
                     table_name, obj))
