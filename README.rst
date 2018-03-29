@@ -8,14 +8,13 @@ available on OpenStack rest API.
 Check-reach is a tool that can be used by cloud admins to check various
 policies on their deployments (double attachment, reachability, etc.)
 
-* Free software: Apache license
-* Documentation: in the code
-* Source: orange forge URL to fill later
-* Bugs: no tracker yet
+* Free software: Apache 2.0 license
+* Documentation: see the code and the ``/doc`` directory
+* Bugs: use the *Issues* tab in GitHub
 
 Features
 --------
 
-* Access to the main neutron and nova tables (networks, ports,
+* Access to the main Neutron and Nova tables (networks, ports,
   security groups, routers, servers)
 * Simple typed datalog that uses BDD backed Z3 fixed-point solver.
