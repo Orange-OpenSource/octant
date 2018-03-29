@@ -24,6 +24,9 @@ from oslo_config import cfg
 from octant import datalog_ast as ast
 
 
+MARSHALLED_NONE = "-*-None-*-"
+
+
 @six.add_metaclass(abc.ABCMeta)
 class Z3Type(object):
     """Translate Openstack values to Z3"""
@@ -95,10 +98,10 @@ class StringType(Z3Type):
             return val
 
     def marshall(self, val):
-        return '--NONE--' if val is None else val
+        return MARSHALLED_NONE if val is None else val
 
     def unmarshall(self, val):
-        return None if val == '--NONE--' else val
+        return None if val == MARSHALLED_NONE else val
 
     def os(self, val):
         return self.back[val.as_long()]
@@ -138,10 +141,10 @@ class IpAddressType(Z3Type):
         return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
 
     def marshall(self, val):
-        return '--NONE--' if val is None else val
+        return MARSHALLED_NONE if val is None else val
 
     def unmarshall(self, val):
-        return None if val == '--NONE--' else val
+        return None if val == MARSHALLED_NONE else val
 
     def os(self, val):
         return ipaddress.ip_address(val.as_long()).compressed
