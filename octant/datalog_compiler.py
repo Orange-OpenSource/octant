@@ -29,6 +29,7 @@ class Z3NotWellFormed(Exception):
 
 
 class Z3Compiler(object):
+    """Prepare octant Datalog for compilation to Z3 (primitive tables)."""
 
     def __init__(self, rules, constants):
         self.rules = rules
@@ -37,14 +38,21 @@ class Z3Compiler(object):
         self.constants = constants
 
     def compile(self):
+        """Compile preprocess high level Datalog.
+
+        It removes constants, make variables unique and
+        extract columns used in primitive tables. It also
+        controls the type-checker.
+        """
         self.substitute_constants()
         self.rename_variables()
         self.find_base_relations()
-        typed_tables = typechecker.typeTheory(
+        typed_tables = typechecker.type_theory(
             self.rules, self.primitive_tables)
         return self.primitive_tables, typed_tables
 
     def substitutes_constants_in_array(self, args):
+        """Substitute constants in arguments arrays"""
         for i in moves.range(len(args)):
             oarg = args[i]
             if isinstance(oarg, ast.Constant):
@@ -56,46 +64,47 @@ class Z3Compiler(object):
                 args[i].label = oarg.label
 
             elif isinstance(args[i], ast.Operation):
-                nb_vars = primitives.OPERATIONS[args[i].op].ty_vars
+                nb_vars = primitives.OPERATIONS[args[i].operation].ty_vars
                 args[i].var_types = [None] * nb_vars
                 self.substitutes_constants_in_array(args[i].args)
 
     def substitute_constants(self):
+        """Substitute constants phase"""
         for rule in self.rules:
             self.substitutes_constants_in_array(rule.head.args)
             for atom in rule.body:
                 self.substitutes_constants_in_array(atom.args)
 
     def rename_variables(self):
+        """Rename variables phase"""
         # WARNING: without nonlocal (python3) known must only be modified by
         # side effect. Assignment would create a new scope in inner functions !
         known = set()
 
         def rename_var(old, count=0):
+            """Rename a variable"""
             newname = "{}:{}".format(old, count)
             if newname in known:
                 return rename_var(old, count + 1)
-            else:
-                known.add(newname)
-                return newname
+            known.add(newname)
+            return newname
 
-        def rename_rule(r):
-            head_vars = r.head_variables()
-            body_vars = r.body_variables()
-            # if not head_vars.issubset(body_vars):
-            #    raise Z3NotWellFormed(
-            #        "Head variables must be included in body vars")
-            vars = body_vars.union(head_vars)
-            seen = vars.intersection(known)
-            known.update(vars)
-            if len(seen) > 0:
+        def rename_rule(rule):
+            """Rename in a rule"""
+            head_vars = rule.head_variables()
+            body_vars = rule.body_variables()
+            all_vars = body_vars.union(head_vars)
+            seen = all_vars.intersection(known)
+            known.update(all_vars)
+            if seen:
                 renaming = {v: rename_var(v) for v in seen}
-                r.rename_variables(renaming)
+                rule.rename_variables(renaming)
 
         for rule in self.rules:
             rename_rule(rule)
 
     def find_base_relations(self):
+        """Extracts base relations of the theory"""
         for rule in self.rules:
             if primitives.is_primitive_atom(rule.head):
                 raise Z3NotWellFormed("No base predicate allowed in head.")
@@ -117,19 +126,25 @@ class Z3Compiler(object):
                     self.flatten(atom, self.primitive_tables[atom.table])
 
     def flatten(self, atom, fields):
-        dict = {}
+        """Replace named arguments with positional args.
+
+        Knowing the columns in use for primitive tables, column names are
+        replaced by positions as regular tables.
+        """
+        dict_arg = {}
 
         def new_var():
+            """Create a new var with unique name"""
             self.var_count += 1
             return ast.Variable("::{}".format(self.var_count))
 
         for arg in atom.args:
-            if arg.label in dict:
+            if arg.label in dict_arg:
                 raise Z3NotWellFormed("Duplicate label in atom")
-            dict[arg.label] = arg
+            dict_arg[arg.label] = arg
             arg.label = None
 
         atom.args = [
-            dict[label] if label in dict else new_var()
+            dict_arg[label] if label in dict_arg else new_var()
             for label in fields
         ]

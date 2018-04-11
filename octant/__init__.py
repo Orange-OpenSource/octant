@@ -12,6 +12,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+'''
+Octant is a front-end for the Z3 SMT solver that makes it usable on data
+available on OpenStack rest API.
+'''
+
 import pbr.version
 
 

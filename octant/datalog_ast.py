@@ -16,6 +16,9 @@
 
 
 class AST(object):
+    """Base ast (abstract syntax tree) type for octant Datalog"""
+
+    # pylint: disable=too-few-public-methods
     pass
 
 
@@ -27,18 +30,23 @@ class Rule(AST):
         self.body = body
 
     def body_variables(self):
+        """Body variables of a rule as a set."""
         return set(v for x in self.body for v in x.variables())
 
     def head_variables(self):
-        return self.head.variables()
+        """Head variables of a rule"""
+        return set(self.head.variables())
 
     def head_table(self):
+        """Table introduced by the rule"""
         return self.head.table
 
     def body_tables(self):
+        """All tables used by the rule"""
         return set(atom.table for atom in self.body)
 
     def rename_variables(self, renaming):
+        """Rename variables according to renaming"""
         self.head.rename_variables(renaming)
         for atom in self.body:
             atom.rename_variables(renaming)
@@ -56,9 +64,11 @@ class Atom(AST):
         self.negated = negated
 
     def variables(self):
+        """Variables of the atom"""
         return set(v for x in self.args for v in x.variables())
 
     def rename_variables(self, renaming):
+        """Rename variables"""
         for arg in self.args:
             arg.rename_variables(renaming)
 
@@ -70,37 +80,42 @@ class Atom(AST):
 
 
 class Expr(AST):
-    "An expression with an optional label"
+    "An abstract expression with an optional label"
 
     def __init__(self, label=None, type=None):
         self.label = label
         self.type = type
 
     def variables(self):
+        """Free variables (default is none)"""
         return []
 
-    def str_label(self, s):
-        return s if self.label is None else "{}: {}".format(self.label, s)
+    def str_label(self, s_expr):
+        """Pretty print with label if label exists"""
+        return (
+            s_expr if self.label is None
+            else "{}: {}".format(self.label, s_expr))
 
     def rename_variables(self, renaming):
+        """Variable renaming (default is nothing)"""
         pass
 
 
 class Variable(Expr):
     "A variable (scope rule)"
 
-    def __init__(self, id, label=None, type=None):
-        super(Variable, self).__init__(label=label)
-        self.id = id
+    def __init__(self, ident, label=None, type=None):
+        super(Variable, self).__init__(label=label, type=type)
+        self.id = ident
 
     def variables(self):
         return [self.id]
 
     def __repr__(self):
-        repr = (
+        expr_repr = (
             self.id if self.type is None
             else "{}:{}".format(self.id, self.type))
-        return self.str_label(repr)
+        return self.str_label(expr_repr)
 
     def rename_variables(self, renaming):
         if self.id in renaming:
@@ -110,9 +125,9 @@ class Variable(Expr):
 class Operation(Expr):
     "An n-ary operation"
 
-    def __init__(self, op, args, type=None):
+    def __init__(self, oper, args, type=None):
         super(Operation, self).__init__(type=type)
-        self.op = op
+        self.operation = oper
         self.args = args
         self.var_types = []  # type variable for polymorphic operators.
 
@@ -124,7 +139,7 @@ class Operation(Expr):
             arg.rename_variables(renaming)
 
     def __repr__(self):
-        return "{}({})".format(self.op, self.args)
+        return "{}({})".format(self.operation, self.args)
 
 
 class NumConstant(Expr):
@@ -175,9 +190,9 @@ class IpConstant(Expr):
 
 class TypedTable(object):
     """A table with a name and types of its columns"""
-    def __init__(self, name, params=[]):
+    def __init__(self, name, params=None):
         self.name = name
-        self.params = params
+        self.params = params if params is not None else []
 
     def __str__(self):
         return "[{}({})]".format(
@@ -185,7 +200,7 @@ class TypedTable(object):
             ",".join(str(x) for x in self.params))
 
 
-class Constant(object):
+class Constant(AST):
     """A constant to be substituted"""
     def __init__(self, name, label=None):
         self.name = name

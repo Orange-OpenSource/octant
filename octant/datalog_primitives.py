@@ -36,12 +36,12 @@ class Z3Type(object):
         self.type_instance = type_instance
 
     @abc.abstractmethod
-    def z3(self, val):
+    def to_z3(self, val):
         """Transforms a value from OpenStack in a Z3 value"""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def os(self, val):
+    def to_os(self, val):
         """Transforms a value from Z3 back to python"""
         raise NotImplementedError
 
@@ -51,7 +51,7 @@ class Z3Type(object):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def unmarshall(self, str):
+    def unmarshall(self, val):
         """Transforms back a string to a raw OpenStack value."""
         raise NotImplementedError
 
@@ -66,7 +66,7 @@ class BoolType(Z3Type):
     def __init__(self):
         super(BoolType, self).__init__('bool', z3.BoolSort())
 
-    def z3(self, val):
+    def to_z3(self, val):
         return z3.BoolVal(val)
 
     def marshall(self, val):
@@ -75,7 +75,7 @@ class BoolType(Z3Type):
     def unmarshall(self, val):
         return val == 'True'
 
-    def os(self, val):
+    def to_os(self, val):
         return val.decl().name() == 'true'
 
 
@@ -87,15 +87,14 @@ class StringType(Z3Type):
         self.map = {}
         self.back = {}
 
-    def z3(self, str):
-        if str in self.map:
-            return self.map[str]
-        else:
-            code = len(self.map)
-            val = z3.BitVecVal(code, self.type_instance)
-            self.map[str] = val
-            self.back[code] = str
-            return val
+    def to_z3(self, val):
+        if val in self.map:
+            return self.map[val]
+        code = len(self.map)
+        val = z3.BitVecVal(code, self.type_instance)
+        self.map[val] = val
+        self.back[code] = val
+        return val
 
     def marshall(self, val):
         return MARSHALLED_NONE if val is None else val
@@ -103,7 +102,7 @@ class StringType(Z3Type):
     def unmarshall(self, val):
         return None if val == MARSHALLED_NONE else val
 
-    def os(self, val):
+    def to_os(self, val):
         return self.back[val.as_long()]
 
 
@@ -115,7 +114,7 @@ class NumType(Z3Type):
         self.map = {}
         self.back = {}
 
-    def z3(self, val):
+    def to_z3(self, val):
         return z3.BitVecVal(val, self.type_instance)
 
     def marshall(self, val):
@@ -124,7 +123,7 @@ class NumType(Z3Type):
     def unmarshall(self, val):
         return val
 
-    def os(self, val):
+    def to_os(self, val):
         return val.as_long()
 
 
@@ -137,7 +136,7 @@ class IpAddressType(Z3Type):
     def __init__(self):
         super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
 
-    def z3(self, val):
+    def to_z3(self, val):
         return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
 
     def marshall(self, val):
@@ -146,7 +145,7 @@ class IpAddressType(Z3Type):
     def unmarshall(self, val):
         return None if val == MARSHALLED_NONE else val
 
-    def os(self, val):
+    def to_os(self, val):
         return ipaddress.ip_address(val.as_long()).compressed
 
 
@@ -171,7 +170,7 @@ def bits_of_mask(mask):
     the number of bits of the mask (for cidr notation).
     """
     bits = 0
-    while(mask > 0):
+    while mask > 0:
         bits += 1
         mask = (mask & 0x7fffffff) << 1
     return bits
@@ -209,30 +208,31 @@ def mask_of_network(cidr):
         else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
 
 
-def port_min(range):
-    if range is None:
+def port_min(port_range):
+    """Extract port min from Openstack format"""
+    if port_range is None:
         return 1
-    elif type(range) is int:
-        return range
-    elif ':' in range:
-        return int(range[: range.find(':')])
-    else:
-        return int(range)
+    if isinstance(port_range, int):
+        return port_range
+    if ':' in port_range:
+        return int(port_range[: port_range.find(':')])
+    return int(port_range)
 
 
-def port_max(range):
-    if range is None:
+def port_max(port_range):
+    """Extract port max from Openstack format"""
+    if port_range is None:
         return 65535
-    elif type(range) is int:
-        return range
-    elif ':' in range:
-        return int(range[range.find(':') + 1:])
-    else:
-        return int(range)
+    if isinstance(port_range, int):
+        return port_range
+    if ':' in port_range:
+        return int(port_range[port_range.find(':') + 1:])
+    return int(port_range)
 
 
-def ip_version(n):
-    return 'ipv4' if n == 4 else 'ipv6'
+def ip_version(vnum):
+    """String version of ip version"""
+    return 'ipv4' if vnum == 4 else 'ipv6'
 
 
 def fw_action(raw):
@@ -321,10 +321,11 @@ def _get_subnet_routes(conn):
     )
 
 
-def _project_scope(p):
+def _project_scope(pval):
     return (
-        p.scope['project']['id']
-        if p.scope is not None and p.scope.get('project', None) is not None
+        pval.scope['project']['id']
+        if pval.scope is not None and
+        pval.scope.get('project', None) is not None
         else None)
 
 

@@ -23,6 +23,8 @@ from octant.tests import base
 
 
 class TestOctant(base.TestCase):
+    """Basic test class"""
 
     def test_something(self):
+        """to define"""
         pass

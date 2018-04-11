@@ -26,9 +26,11 @@ class Z3TypeError(Exception):
         super(Z3TypeError, self).__init__(self, *args, **kwargs)
 
 
-def typeTheory(rules, primitive_tables):
+def type_theory(rules, primitive_tables):
+    """Types a given set of rules"""
 
     def prepare_typing():
+        """Initialize typing with info from primitive tables"""
         dict_vars = {}
         dict_tables = {}
         # Initialize the types of primitive tables in use.
@@ -41,9 +43,9 @@ def typeTheory(rules, primitive_tables):
                 raise Z3TypeError("Unknown primitive {}".format(table))
             try:
                 args = [prim[field][0] for field in fields]
-            except KeyError as e:
+            except KeyError as exc:
                 raise Z3TypeError(
-                    "Unknown field {} in table {}".format(e.args[0], table))
+                    "Unknown field {} in table {}".format(exc.args[0], table))
             dict_tables[table] = ast.TypedTable(table, args)
 
         def subst_var(arg):
@@ -99,17 +101,18 @@ def typeTheory(rules, primitive_tables):
         return dict_tables
 
     def type_expr(expr):
+        """Types an expression"""
         if not isinstance(expr, ast.Operation):
             return False
 
         def get_type(scheme):
-            if type(scheme) == int:
+            """Get the type of an operation argument."""
+            if isinstance(scheme, int):
                 return expr.var_types[scheme]
-            else:
-                return scheme
+            return scheme
 
         work_done = False
-        schema = primitives.OPERATIONS[expr.op]
+        schema = primitives.OPERATIONS[expr.operation]
         typ_scheme_res = get_type(schema.result)
         if expr.type is None:
             if typ_scheme_res is not None:
@@ -149,6 +152,7 @@ def typeTheory(rules, primitive_tables):
         return work_done
 
     def type_atom(atom):
+        """Types an atom"""
         params = atom.table.params
         work_done = False
         for i in moves.range(len(params)):
@@ -201,9 +205,9 @@ def typeTheory(rules, primitive_tables):
     while work_done:
         work_done = False
         for rule in rules:
-            wd = type_atom(rule.head)
-            work_done = work_done or wd
+            new_work = type_atom(rule.head)
+            work_done = work_done or new_work
             for atom in rule.body:
-                wd = type_atom(atom)
-                work_done = work_done or wd
+                new_work = type_atom(atom)
+                work_done = work_done or new_work
     return dict_tables

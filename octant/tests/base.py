@@ -15,6 +15,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+""" Test utilities for the project"""
+
 from oslotest import base
 
 

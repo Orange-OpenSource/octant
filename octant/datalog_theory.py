@@ -18,12 +18,12 @@ from __future__ import print_function
 
 import csv
 import getpass
-import prettytable
 import sys
 import textwrap
 import time
 import urllib3
 
+import prettytable
 import six
 from six import moves
 import z3
@@ -43,7 +43,9 @@ from octant import options
 
 
 def z3_to_array(expr):
+    """Compiles back a Z3 result to a matrix of values"""
     def extract(item):
+        """Extract a row"""
         kind = item.decl().kind()
         if kind == z3.Z3_OP_AND:
             return [x.children()[1] for x in item.children()]
@@ -87,30 +89,33 @@ class Z3Theory(object):
         self.types = primitives.TYPES
 
     def build_theory(self):
+        """Builds the Z3 theory"""
         self.build_relations()
         self.retrieve_data()
         self.build_rules()
 
     def build_relations(self):
-        for name, typedTable in six.iteritems(self.typed_tables):
+        """Builds the compiled relations"""
+        for name, typed_table in six.iteritems(self.typed_tables):
             try:
-                paramTypes = [
+                param_types = [
                     self.types[typename].type()
-                    for typename in typedTable.params]
-            except KeyError as e:
+                    for typename in typed_table.params]
+            except KeyError as exc:
                 raise typechecker.Z3TypeError(
                     "Unknown type {} found for {}: {}".format(
-                        e.args[0],
+                        exc.args[0],
                         name,
-                        typedTable.params
+                        typed_table.params
                     ))
-            paramTypes.append(z3.BoolSort())
-            relation = z3.Function(name, *paramTypes)
+            param_types.append(z3.BoolSort())
+            relation = z3.Function(name, *param_types)
             self.context.register_relation(relation)
             self.relations[name] = relation
 
     def retrieve_table(self, datasource, writer, table_name, fields):
-        use_cache = type(datasource) == dict
+        """Get the facts on the cloud or in the csv cache"""
+        use_cache = isinstance(datasource, dict)
         if table_name in primitives.TABLES:
             accessor, fields_descr = primitives.TABLES[table_name]
             if use_cache:
@@ -131,13 +136,15 @@ class Z3Theory(object):
         relation = self.relations[table_name]
 
         def get_field(field):
+            """Get a field compilation functions for cloud access"""
             type_name, access = fields_descr[field]
-            type = self.types[type_name]
-            return (type.z3, access, type.marshall)
+            type_field = self.types[type_name]
+            return (type_field.z3, access, type_field.marshall)
 
         def get_field_from_cache(field):
+            """Get a field compilation functions for csv access"""
             type_name, _ = fields_descr[field]
-            type = self.types[type_name]
+            type_field = self.types[type_name]
             print(index)
             print(field)
             try:
@@ -148,9 +155,9 @@ class Z3Theory(object):
                         field,
                         table_name))
             return (
-                type.z3,
-                lambda row: type.unmarshall(row[pos]),
-                type.marshall)
+                type_field.z3,
+                lambda row: type_field.unmarshall(row[pos]),
+                type_field.marshall)
 
         if use_cache:
             access_fields = [get_field_from_cache(field) for field in fields]
@@ -169,10 +176,10 @@ class Z3Theory(object):
                         [marshall(raw) for (_, raw, marshall) in extracted])
                 self.context.fact(relation(
                     *[typ(raw) for (typ, raw, _) in extracted]))
-            except Exception as e:
+            except Exception as exc:
                 print("Error while retrieving table {} on {}".format(
                     table_name, obj))
-                raise e
+                raise exc
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
@@ -218,37 +225,39 @@ class Z3Theory(object):
             self.retrieve_data_with_cnx(datasource, None)
 
     def retrieve_data_with_cnx(self, datasource, save_cnx):
+        """Get facts from connection"""
         for table_name, fields in six.iteritems(self.primitive_tables):
             self.retrieve_table(datasource, save_cnx, table_name, fields)
 
-    def compile_expr(self, vars, expr):
+    def compile_expr(self, variables, expr):
+        """Compile an expression to Z3"""
         if isinstance(expr, ast.NumConstant):
-            return self.types['int'].z3(expr.val)
+            return self.types['int'].to_z3(expr.val)
         elif isinstance(expr, ast.StringConstant):
-            return self.types[expr.type].z3(expr.val)
+            return self.types[expr.type].to_z3(expr.val)
         elif isinstance(expr, ast.BoolConstant):
-            return self.types['bool'].z3(expr.val)
+            return self.types['bool'].to_z3(expr.val)
         elif isinstance(expr, ast.IpConstant):
-            return self.types['ip_address'].z3(expr.val)
+            return self.types['ip_address'].to_z3(expr.val)
         elif isinstance(expr, ast.Variable):
-            if expr.id in vars:
-                return vars[expr.id]
-            else:
-                type = self.types[expr.type].type()
-                var = z3.Const(expr.id, type)
-                self.context.declare_var(var)
-                vars[expr.id] = var
-                return var
+            if expr.id in variables:
+                return variables[expr.id]
+            expr_type = self.types[expr.type].type()
+            var = z3.Const(expr.id, expr_type)
+            self.context.declare_var(var)
+            variables[expr.id] = var
+            return var
         elif isinstance(expr, ast.Operation):
-            operator = primitives.OPERATIONS[expr.op].z3
+            operator = primitives.OPERATIONS[expr.operation].z3
             return operator(
-                *(self.compile_expr(vars, arg) for arg in expr.args))
+                *(self.compile_expr(variables, arg) for arg in expr.args))
         else:
             raise compiler.Z3NotWellFormed(
                 "cannot proceed with {}".format(expr))
 
-    def compile_atom(self, vars, atom):
-        args = [self.compile_expr(vars, expr) for expr in atom.args]
+    def compile_atom(self, variables, atom):
+        """Compiles an atom to Z3"""
+        args = [self.compile_expr(variables, expr) for expr in atom.args]
         if atom.table.name in primitives.COMPARISON:
             compiled_atom = primitives.COMPARISON[atom.table.name](args)
         else:
@@ -257,19 +266,21 @@ class Z3Theory(object):
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
     def build_rules(self):
+        """Compiles rules to Z3"""
         for rule in self.rules:
             head = self.compile_atom(self.vars, rule.head)
             body = [self.compile_atom(self.vars, atom) for atom in rule.body]
             self.context.rule(head, body)
 
-    def query(self, str):
-        atom = parser.parse_atom(str)
+    def query(self, str_query):
+        """Query a relation on the compiled theory"""
+        atom = parser.parse_atom(str_query)
         self.compile_instance.substitutes_constants_in_array(atom.args)
         if atom.table not in self.typed_tables:
             raise compiler.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))
         atom.table = self.typed_tables[atom.table]
-        if (len(atom.table.params) != len(atom.args)):
+        if len(atom.table.params) != len(atom.args):
             raise compiler.Z3NotWellFormed(
                 "Arity of predicate inconsistency in {}".format(atom))
         for i in moves.xrange(len(atom.table.params)):
@@ -280,23 +291,23 @@ class Z3Theory(object):
             self.types[arg.type]
             for arg in atom.args
             if isinstance(arg, ast.Variable)]
-        vars = [
+        variables = [
             arg.id for arg in atom.args if isinstance(arg, ast.Variable)
         ]
         answer = z3_to_array(self.context.get_answer())
-        if type(answer) is bool:
-            return vars, answer
-        return vars, [
-            [type_x.os(x)
+        if isinstance(answer, bool):
+            return variables, answer
+        return variables, [
+            [type_x.to_os(x)
              for type_x, x in moves.zip(types, row)]
             for row in answer]
 
 
-def print_csv(vars, answers):
+def print_csv(variables, answers):
     """Print the result of a query in excel csv format"""
-    if type(answers) == list:
+    if isinstance(answers, list):
         csvwriter = csv.writer(sys.stdout)
-        csvwriter.writerow(vars)
+        csvwriter.writerow(variables)
         for row in answers:
             csvwriter.writerow(row)
     else:
@@ -304,16 +315,16 @@ def print_csv(vars, answers):
     print()
 
 
-def print_result(query, vars, answers, time):
+def print_result(query, variables, answers, time_used):
     """Pretty-print the result of a query"""
     print("*" * 80)
     print(query)
-    if time is not None:
-        print("Query time: {}".format(time))
+    if time_used is not None:
+        print("Query time: {}".format(time_used))
     print("-" * 80)
     if cfg.CONF.pretty:
-        if type(answers) == list:
-            pretty = prettytable.PrettyTable(vars)
+        if isinstance(answers, list):
+            pretty = prettytable.PrettyTable(variables)
             for row in answers:
                 pretty.add_row(row)
             print(pretty.get_string())
@@ -331,9 +342,9 @@ def main():
     args = sys.argv[1:]
     options.init(args)
     time_required = cfg.CONF.time
-    csv = cfg.CONF.csv
+    csv_out = cfg.CONF.csv
     pretty = cfg.CONF.pretty
-    if csv and (time_required or pretty):
+    if csv_out and (time_required or pretty):
         print("Cannot use option --csv with --time or --pretty.")
         sys.exit(1)
     rules = []
@@ -350,18 +361,18 @@ def main():
             print("Data retrieval: {}".format(time.clock() - start))
         for query in cfg.CONF.query:
             start = time.clock()
-            vars, answers = theory.query(query)
-            if csv:
-                print_csv(vars, answers)
+            variables, answers = theory.query(query)
+            if csv_out:
+                print_csv(variables, answers)
             else:
                 print_result(
-                    query, vars, answers,
+                    query, variables, answers,
                     time.clock() - start if time_required else None)
-        if not(csv):
+        if not csv_out:
             print("*" * 80)
-    except compiler.Z3NotWellFormed as e:
-        print("Badly formed program: {}".format(e.args[1]))
+    except compiler.Z3NotWellFormed as exc:
+        print("Badly formed program: {}".format(exc.args[1]))
         sys.exit(1)
-    except typechecker.Z3TypeError as e:
-        print("Type error: {}".format(e.args[1]))
+    except typechecker.Z3TypeError as exc:
+        print("Type error: {}".format(exc.args[1]))
         sys.exit(1)

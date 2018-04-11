@@ -21,6 +21,9 @@ from ply import yacc
 
 from octant import datalog_ast as ast
 
+# Not changing ply conventions because of pylint
+# pylint: disable=invalid-name
+
 tokens = (
     'IDENT', 'VAR', 'NUMBER', 'STRING', 'IP', 'ENTAIL', 'OPAR', 'BANG',
     'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR',
@@ -79,6 +82,7 @@ def t_newline(t):
 
 
 def t_error(t):
+    # pylint: disable=missing-docstring
     print("Illegal character '%s' at line %d" % (t.value[0], t.lexer.lineno))
     t.lexer.skip(1)
 
@@ -235,6 +239,7 @@ def p_eexpr_not(t):
 
 
 def p_error(t):
+    # pylint: disable=missing-docstring
     if not t:
         print("Syntax error: EOF reached")
     else:
@@ -249,13 +254,15 @@ def p_error(t):
 parser = yacc.yacc(write_tables=False, debug=False)
 
 
-def parse_atom(str):
+def parse_atom(query_str):
+    """Parse a string considered as a query"""
     lexer.lineno = 0
-    rules = parser.parse(str + ".")
+    rules = parser.parse(query_str + ".")
     return rules[0].head
 
 
 def parse_file(filename):
-    with open(filename) as file:
+    """Parse a file"""
+    with open(filename) as filestream:
         lexer.lineno = 0
-        return parser.parse(file.read())
+        return parser.parse(filestream.read())
