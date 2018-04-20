@@ -256,11 +256,22 @@ class Z3Theory(object):
             compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
-    def build_rules(self):
+    def get_facts(self):
+	facts = set([])
+	facts.update(map(lambda r:r.head_table().name,self.rules))
         for rule in self.rules:
+	    if (not ((len(rule.body) == 0) and len(rule.head_variables()) == 0)):
+		facts.remove(rule.head_table().name)
+	    
+	print("facts = "+str(facts))
+	return facts
+
+    def build_rules(self):
+        facts = self.get_facts()
+	for rule in self.rules:
             head = self.compile_atom(self.vars, rule.head)
             body = [self.compile_atom(self.vars, atom) for atom in rule.body]
-            self.context.rule(head, body)
+	    self.context.rule(head, body)
 
     def query(self, str):
         atom = parser.parse_atom(str)
