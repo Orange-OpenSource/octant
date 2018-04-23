@@ -83,8 +83,11 @@ class Z3Theory(object):
         self.vars = {}
 
         context = z3.Fixedpoint()
-        context.set(engine='datalog')
-        self.context = context
+
+   	dct = {'engine':'datalog','datalog.default_relation':'doc'}
+	context.set(**dct)
+
+	self.context = context
 
         self.types = primitives.TYPES
 
