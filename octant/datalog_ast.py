@@ -30,7 +30,8 @@ class Rule(AST):
         return set(v for x in self.body for v in x.variables())
 
     def head_variables(self):
-        return self.head.variables()
+        #return set(self.head.variables())
+	return self.head.variables()
 
     def head_table(self):
         return self.head.table
@@ -44,7 +45,7 @@ class Rule(AST):
             atom.rename_variables(renaming)
 
     def __repr__(self):
-        return "{} :- {}".format(self.head, self.body)
+        return "{} :- {}\n".format(self.head, self.body)
 
 
 class Atom(AST):
@@ -61,6 +62,14 @@ class Atom(AST):
     def rename_variables(self, renaming):
         for arg in self.args:
             arg.rename_variables(renaming)
+
+    def replace_vars_by_expr(self,variables,values):
+        i = 0
+	for arg in self.args:
+                if isinstance(arg,Variable) and arg.id in variables.keys():
+                        self.args[i] = values[variables[arg.id]]
+                i += 1
+
 
     def __repr__(self):
         return "{}{}({})".format(

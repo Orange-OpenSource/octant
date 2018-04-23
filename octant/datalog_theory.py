@@ -28,6 +28,8 @@ import six
 from six import moves
 import z3
 
+import copy
+
 from keystoneauth1 import identity
 from keystoneauth1 import session
 from neutronclient.v2_0 import client as neutronclient
@@ -257,17 +259,102 @@ class Z3Theory(object):
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
     def get_facts(self):
-	facts = set([])
-	facts.update(map(lambda r:r.head_table().name,self.rules))
+	#hashtable: name of fact --> set of tuples that make it true
+	facts = {}
+	# in case we have P(x,y,z) :- Q(x,y,z) and then P(1,2,3) :-
+	not_facts = set([])
+	#facts.update(map(lambda r:r.head_table().name,self.rules))
         for rule in self.rules:
-	    if (not ((len(rule.body) == 0) and len(rule.head_variables()) == 0)):
-		facts.remove(rule.head_table().name)
-	    
+
+	    name = rule.head_table().name
+
+	    if ((len(rule.body) == 0) and len(rule.head_variables()) == 0 and not (name in not_facts)):
+		try:
+			facts[name].add(tuple(rule.head.args)) 
+		except KeyError:
+			new_set = set([])
+			new_set.add(tuple(rule.head.args))
+			facts[name]=new_set
+	    else:
+		if (name in facts.keys()):
+			del facts[name]
+		not_facts.add(name)	    
+
 	print("facts = "+str(facts))
 	return facts
 
+    def rule_body_contains_fact(self,fact,rule):
+	for atom in rule.body:
+            if atom.head.name == fact:
+		return True
+	return False
+	
+    # variables is Var --> N
+    # values is a tuple, \equiv N --> Value
+    def create_new_rule_with_replacement(self,variables,values,rule):
+	new_body = copy.deepcopy(rule.body)
+	for atom in new_body:
+	    atom.replace_vars_by_expr(variables,values)
+	
+	new_head = copy.deepcopy(rule.head)
+	new_head.replace_vars_by_expr(variables,values)	
+
+	return ast.Rule(new_head, new_body)
+
+
+    def unfold_fact(self,rule,pred,values):
+	# storing the positions of the variables 
+	pos = {}
+	found = False
+	new_rules = []
+
+	# looking for a rule carrying pred in its body and storing its variables
+	for atom in rule.body:
+	    if atom.table.name == pred:
+		i = 0
+		for arg in atom.args:
+			if isinstance(arg,ast.Variable):
+				pos[arg.id] = i
+			i += 1
+		rule.body.remove(atom)
+		found = True
+		break
+ 
+	if found:
+	   # replacing the variables with concrete values
+	   for tup in values:
+	       new_rule = self.create_new_rule_with_replacement(pos,tup,rule)
+	       new_rules += [new_rule]
+
+	else:
+	       new_rules += [rule]
+	 
+	return new_rules
+
+    def unfold_facts(self,facts):
+	print("rules = "+str(self.rules))	
+	for fact in facts.keys():
+ 	    to_remove = []
+	    to_add = []
+	    for rule in self.rules:
+		print("\nchecking fact "+str(fact)+" against rule "+str(rule))
+		new_rules = self.unfold_fact(rule,fact,facts[fact])
+		print("new_rules = "+str(new_rules)+"\n")
+		to_remove += [rule]
+		to_add += new_rules
+	
+	for rule in to_remove:
+	    self.rules.remove(rule)
+	self.rules += to_add
+
+	print("rules = "+str(self.rules))
+
+
     def build_rules(self):
-        facts = self.get_facts()
+        
+	facts = self.get_facts()
+	self.unfold_facts(facts)			 
+
 	for rule in self.rules:
             head = self.compile_atom(self.vars, rule.head)
             body = [self.compile_atom(self.vars, atom) for atom in rule.body]
