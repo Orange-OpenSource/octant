@@ -156,6 +156,7 @@ TYPES = {
     'id': StringType('id'),
     'int': NumType('int'),
     'int4': NumType('int', size=4),
+    'int8': NumType('int', size=8),
     'int16': NumType('int', size=16),
     'direction': StringType('direction', size=2),
     'status': StringType('status', size=3),
