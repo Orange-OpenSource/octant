@@ -148,6 +148,12 @@ class NumConstant(Expr):
     def __repr__(self):
         return self.str_label(str(self.val))
 
+    def __eq__(self, other):
+	if isinstance(other, NumConstant):
+	    return (self.val == other.val) and (self.type == other.type)
+
+    def __hash__(self):
+	return hash(self.__repr__())
 
 class StringConstant(Expr):
     "A string constant"
