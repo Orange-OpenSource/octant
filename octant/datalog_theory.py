@@ -305,13 +305,13 @@ class Z3Theory(object):
 
 	for pred in values.keys():
 	    indexes = values[pred].keys()
-	    print("pred = "+pred+" et indexes = "+str(indexes))
+	    
+	    # if only one argument is stable, no dependencies issues between args
+	    # we can then eliminate duplicates
 	    if len(indexes) == 1:
-		#new_set = set()
-		# for some reason, list(set(values[...])) doesn't seem to work here
-		#for val in values[pred][indexes[0]]:
-		#    new_set.add(val)
 		values[pred][indexes[0]] = list(set(values[pred][indexes[0]]))
+	    
+	    # if no argument is stable, we eliminate the predicate form the hash altogether
 	    elif len(indexes) == 0:
 		del values[pred]
 
@@ -421,6 +421,67 @@ class Z3Theory(object):
 	for rem in to_remove:
 	    self.rules.remove(rem) 
 
+    def unfold_partially_stable_pred(self,rule,pred,values):
+        pos = {}
+	ground_pos = values.keys()
+        # changed happed
+        found = False
+        new_rules = []
+
+        # looking for a rule carrying pred in its body and storing its variables
+        for atom in rule.body:
+            if atom.table.name == pred:
+                i = 0
+                for arg in atom.args:
+                        if isinstance(arg,ast.Variable) and i in ground_pos:
+                                pos[arg.id] = i
+                	i += 1
+                #rule.body.remove(atom)
+                found = True
+                break
+
+        if found:
+
+	   nb_tuples = len(values[values.keys()[0]])
+		
+           # replacing the variables with concrete values
+           for i in range(nb_tuples):
+	       current_values = []
+	       for j in values.keys():
+		   current_values += [values[j][i]]
+	       print("found = true et pos = "+str(pos)+" et current_values = "+str(current_values)+" et rule = "+str(rule))
+               new_rule = self.create_new_rule_with_replacement(pos,current_values,rule)
+               new_rules += [new_rule]
+
+        else:
+               new_rules += [rule]
+
+        return new_rules
+
+
+
+
+    def unfold_partially_stable_preds(self,values):
+
+        for pred in values.keys():
+            # we store the changes to avoid modifying the rule list while iterating over it
+            # rules to remove
+            to_remove = []
+            # rules to add
+            to_add = []
+            for rule in self.rules:
+                new_rules = self.unfold_partially_stable_pred(rule,pred,values[pred])
+                to_remove += [rule]
+                to_add += new_rules
+
+
+        # update the list of rules
+        for rule in to_remove:
+            self.rules.remove(rule)
+        self.rules += to_add
+
+
+
     def pre_processing(self):
 	
         # injecting the edb part into the idb 
@@ -452,11 +513,13 @@ class Z3Theory(object):
 	# assuming X = X' U {k} and X and Y disjoint
 	# note that by doing so, we may introduce new "candidates"
 	# and thus need to compute a fixpoint of this unfolding
-
-	pred_stable_ground_values = self.get_partially_ground_preds()
-
-	print("pred_stable_ground_values = "+str(pred_stable_ground_values))
 	
+	# TODO: fixpoint of that
+	pred_stable_ground_values = self.get_partially_ground_preds()
+	self.unfold_partially_stable_preds(pred_stable_ground_values)
+	print("pred_stable_ground_values = "+str(pred_stable_ground_values))
+	print("rules at the end of preprocessing :\n"+str(self.rules))	
+
     def build_rules(self):
         
 	self.pre_processing()
