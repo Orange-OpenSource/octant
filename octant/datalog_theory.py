@@ -83,7 +83,7 @@ class Z3Theory(object):
         self.vars = {}
 
         context = z3.Fixedpoint()
-
+	#context.set(engine='datalog')
    	dct = {'engine':'datalog','datalog.default_relation':'doc'}
 	context.set(**dct)
 
@@ -172,7 +172,7 @@ class Z3Theory(object):
                     writer.writerow(
                         [table_name] +
                         [marshall(raw) for (_, raw, marshall) in extracted])
-                self.context.fact(relation(
+                self.context.edb(relation(
                     *[typ(raw) for (typ, raw, _) in extracted]))
             except Exception as e:
                 print("Error while retrieving table {} on {}".format(
@@ -228,7 +228,7 @@ class Z3Theory(object):
 
     def compile_expr(self, vars, expr):
         if isinstance(expr, ast.NumConstant):
-            return self.types['int'].z3(expr.val)
+            return self.types[expr.type].z3(expr.val)
         elif isinstance(expr, ast.StringConstant):
             return self.types[expr.type].z3(expr.val)
         elif isinstance(expr, ast.BoolConstant):
@@ -256,39 +256,93 @@ class Z3Theory(object):
         args = [self.compile_expr(vars, expr) for expr in atom.args]
         if atom.table.name in primitives.COMPARISON:
             compiled_atom = primitives.COMPARISON[atom.table.name](args)
-        else:
+	else:
             relation = self.relations[atom.table.name]
-            compiled_atom = relation(*args)
-        return z3.Not(compiled_atom) if atom.negated else compiled_atom
+	    compiled_atom = relation(*args)
+	return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
-    def get_facts(self):
-	#hashtable: name of fact --> set of tuples that make it true
-	facts = {}
+    def get_partially_ground_preds(self):
+	# hashtable: pred --> set of always concrete variable indexes 
+	ground_args = {}
+	# hashtable: pred --> {index --> possible values}
+	values = {}
+
+        for rule in self.rules:
+
+            name = rule.head_table().name
+	    set_of_ground_args = set()
+	    
+	    arg_index = 0
+ 	    for arg in rule.head.args:
+		if not (isinstance(arg,ast.Variable)):
+		    set_of_ground_args.add(arg_index)
+		arg_index += 1
+
+
+	    try:
+                previous_set_of_ground_indexes = ground_args[name]
+
+		# arguments that were ground but aren't anymore
+		to_remove = previous_set_of_ground_indexes.difference(set_of_ground_args)
+
+		for ind in to_remove:
+		    del values[name][ind]
+
+		# adding the current ground values
+		for ind in previous_set_of_ground_indexes:
+		    values[name][ind] += [rule.head.args[ind]]
+	
+	    except KeyError:
+		ground_args[name] = set_of_ground_args
+		values[name] = {}
+		for ind in set_of_ground_args:
+		    values[name][ind] = [rule.head.args[ind]] 
+	    
+
+	    # no argument of the predicate is stable, no need to unfold it
+	    #if (len(previous_set_of_ground_indexes) == 0):
+	    #	del values[name]
+
+	for pred in values.keys():
+	    indexes = values[pred].keys()
+	    print("pred = "+pred+" et indexes = "+str(indexes))
+	    if len(indexes) == 1:
+		#new_set = set()
+		# for some reason, list(set(values[...])) doesn't seem to work here
+		#for val in values[pred][indexes[0]]:
+		#    new_set.add(val)
+		values[pred][indexes[0]] = list(set(values[pred][indexes[0]]))
+	    elif len(indexes) == 0:
+		del values[pred]
+
+	return values
+
+    def get_edbs(self):
+	# hashtable: name of edb --> set of tuples that make it true
+	edbs = {}
 	# in case we have P(x,y,z) :- Q(x,y,z) and then P(1,2,3) :-
-	not_facts = set([])
-	#facts.update(map(lambda r:r.head_table().name,self.rules))
+	not_edbs = set([])
         for rule in self.rules:
 
 	    name = rule.head_table().name
 
-	    if ((len(rule.body) == 0) and len(rule.head_variables()) == 0 and not (name in not_facts)):
+	    if ((len(rule.body) == 0) and len(rule.head_variables()) == 0 and not (name in not_edbs)):
 		try:
-			facts[name].add(tuple(rule.head.args)) 
+		    edbs[name].add(tuple(rule.head.args)) 
 		except KeyError:
-			new_set = set([])
-			new_set.add(tuple(rule.head.args))
-			facts[name]=new_set
+		    new_set = set([])
+		    new_set.add(tuple(rule.head.args))
+		    edbs[name]=new_set
 	    else:
-		if (name in facts.keys()):
-			del facts[name]
-		not_facts.add(name)	    
+		if (name in edbs.keys()):
+		    del edbs[name]
+		not_edbs.add(name)	    
 
-	print("facts = "+str(facts))
-	return facts
+	return edbs
 
-    def rule_body_contains_fact(self,fact,rule):
+    def rule_body_contains_edb(self,edb,rule):
 	for atom in rule.body:
-            if atom.head.name == fact:
+            if atom.head.name == edb:
 		return True
 	return False
 	
@@ -305,9 +359,10 @@ class Z3Theory(object):
 	return ast.Rule(new_head, new_body)
 
 
-    def unfold_fact(self,rule,pred,values):
+    def unfold_edb(self,rule,pred,values):
 	# storing the positions of the variables 
 	pos = {}
+	# changed happed
 	found = False
 	new_rules = []
 
@@ -334,34 +389,85 @@ class Z3Theory(object):
 	 
 	return new_rules
 
-    def unfold_facts(self,facts):
-	print("rules = "+str(self.rules))	
-	for fact in facts.keys():
+    def unfold_edbs(self,edbs):
+
+
+	for edb in edbs.keys():
+	    # we store the changes to avoid modifying the rule list while iterating over it
+	    # rules to remove
  	    to_remove = []
+	    # rules to add
 	    to_add = []
 	    for rule in self.rules:
-		print("\nchecking fact "+str(fact)+" against rule "+str(rule))
-		new_rules = self.unfold_fact(rule,fact,facts[fact])
-		print("new_rules = "+str(new_rules)+"\n")
+		#print("\nchecking edb "+str(edb)+" against rule "+str(rule))
+		new_rules = self.unfold_edb(rule,edb,edbs[edb])
 		to_remove += [rule]
 		to_add += new_rules
+		
 	
+	# update the list of rules
 	for rule in to_remove:
 	    self.rules.remove(rule)
 	self.rules += to_add
 
-	print("rules = "+str(self.rules))
 
+    def remove_edb(self,edbs):
+	to_remove = []
 
+	for rule in self.rules:
+	    if rule.head_table().name in edbs.keys():
+		to_remove += [rule]
+
+	for rem in to_remove:
+	    self.rules.remove(rem) 
+
+    def pre_processing(self):
+	
+        # injecting the edb part into the idb 
+        # needs to be done only once (not more "facts" after that)
+        # collects "facts" and stores the possible values
+        edb = self.get_edbs()
+
+        self.remove_edb(edb)
+        # unfolds them in the rest of the rules
+        self.unfold_edbs(edb)
+
+	# injecting concrete arguments of predicates into rules
+	# for example, if all the rules with P as a head are of the form
+	#
+	#    P(1,X) :- phi(X,Y)
+	#    P(2,X) :- psi(X,Y)
+ 	#
+	# ie., have a concrete value for one of the arguments, we know 
+	# that each occurence of P(k,X) in the body of a rule will, in
+        # pratice, have 1 or 2 as a value of k. We can then replace
+	#
+	#    Q(X)   :- P(k,X,Y), pso(X,Y)
+        #
+	# by
+	#
+        #    Q(X[k\1])   :- P(1,X',Y), pso(X[k\1],Y)
+        #    Q(X[k\2])   :- P(2,X',Y), pso(X[k\2],Y)
+	#
+	# assuming X = X' U {k} and X and Y disjoint
+	# note that by doing so, we may introduce new "candidates"
+	# and thus need to compute a fixpoint of this unfolding
+
+	pred_stable_ground_values = self.get_partially_ground_preds()
+
+	print("pred_stable_ground_values = "+str(pred_stable_ground_values))
+	
     def build_rules(self):
         
-	facts = self.get_facts()
-	self.unfold_facts(facts)			 
+	self.pre_processing()
+
+	#print("Rules après préprocessing = "+str(self.rules))
 
 	for rule in self.rules:
             head = self.compile_atom(self.vars, rule.head)
             body = [self.compile_atom(self.vars, atom) for atom in rule.body]
 	    self.context.rule(head, body)
+
 
     def query(self, str):
         atom = parser.parse_atom(str)
@@ -376,8 +482,8 @@ class Z3Theory(object):
         for i in moves.xrange(len(atom.table.params)):
             atom.args[i].type = atom.table.params[i]
         query = self.compile_atom({}, atom)
-        self.context.query(query)
-        types = [
+	self.context.query(query)
+	types = [
             self.types[arg.type]
             for arg in atom.args
             if isinstance(arg, ast.Variable)]
@@ -451,7 +557,7 @@ def main():
             print("Data retrieval: {}".format(time.clock() - start))
         for query in cfg.CONF.query:
             start = time.clock()
-            vars, answers = theory.query(query)
+	    vars, answers = theory.query(query)
             if csv:
                 print_csv(vars, answers)
             else:
