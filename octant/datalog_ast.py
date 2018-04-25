@@ -22,9 +22,10 @@ class AST(object):
 class Rule(AST):
     """Represents a rule"""
 
-    def __init__(self, head, body):
+    def __init__(self, head, body,protected=False):
         self.head = head
         self.body = body
+	self.protected = protected
 
     def body_variables(self):
         return set(v for x in self.body for v in x.variables())
@@ -45,7 +46,9 @@ class Rule(AST):
             atom.rename_variables(renaming)
 
     def __repr__(self):
-        return "{} :- {}\n".format(self.head, self.body)
+        return "{}{} :- {}\n".format(
+	    "@" if self.protected else "",
+	    self.head, self.body)
 
 
 class Atom(AST):

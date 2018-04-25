@@ -24,7 +24,7 @@ from octant import datalog_ast as ast
 tokens = (
     'IDENT', 'VAR', 'NUMBER', 'STRING', 'IP', 'ENTAIL', 'OPAR', 'BANG',
     'CPAR', 'COLON', 'COMMA', 'EQUAL', 'DOT', 'TILDE', 'AMPERSAND', 'BAR',
-    'LT', 'LE', 'GT', 'GE'
+    'LT', 'LE', 'GT', 'GE','PROT'
 )
 
 t_EQUAL = r'='
@@ -44,6 +44,7 @@ t_LT = r'<'
 t_GT = r'>'
 t_LE = r'<='
 t_GE = r'>='
+t_PROT = r'@'
 t_ignore_COMMENT = r'\#.*'
 
 
@@ -106,6 +107,11 @@ def p_rule_list_many(t):
     'rule_list : rule_list rule'
     t[1].append(t[2])
     t[0] = t[1]
+
+
+def p_protected_rule(t):
+    'rule : PROT predicate ENTAIL predicate_list DOT'
+    t[0] = ast.Rule(head=t[2], body=t[4],protected=True)
 
 
 def p_rule(t):

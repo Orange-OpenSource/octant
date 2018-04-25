@@ -399,10 +399,11 @@ class Z3Theory(object):
 	    # rules to add
 	    to_add = []
 	    for rule in self.rules:
-		#print("\nchecking edb "+str(edb)+" against rule "+str(rule))
-		new_rules = self.unfold_edb(rule,edb,edbs[edb])
-		to_remove += [rule]
-		to_add += new_rules
+		if not (rule.protected):
+		    #print("\nchecking edb "+str(edb)+" against rule "+str(rule))
+		    new_rules = self.unfold_edb(rule,edb,edbs[edb])
+		    to_remove += [rule]
+		    to_add += new_rules
 		
 	
 	# update the list of rules
@@ -470,9 +471,10 @@ class Z3Theory(object):
             # rules to add
             to_add = []
             for rule in self.rules:
-                new_rules = self.unfold_partially_stable_pred(rule,pred,values[pred])
-                to_remove += [rule]
-                to_add += new_rules
+		if not (rule.protected):
+                    new_rules = self.unfold_partially_stable_pred(rule,pred,values[pred])
+                    to_remove += [rule]
+                    to_add += new_rules
 
 
         # update the list of rules
