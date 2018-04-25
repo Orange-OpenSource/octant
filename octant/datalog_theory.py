@@ -291,17 +291,14 @@ class Z3Theory(object):
 		# adding the current ground values
 		for ind in previous_set_of_ground_indexes:
 		    values[name][ind] += [rule.head.args[ind]]
-	
+	    
+	    # first time
 	    except KeyError:
 		ground_args[name] = set_of_ground_args
 		values[name] = {}
 		for ind in set_of_ground_args:
 		    values[name][ind] = [rule.head.args[ind]] 
 	    
-
-	    # no argument of the predicate is stable, no need to unfold it
-	    #if (len(previous_set_of_ground_indexes) == 0):
-	    #	del values[name]
 
 	for pred in values.keys():
 	    indexes = values[pred].keys()
@@ -329,6 +326,7 @@ class Z3Theory(object):
 	    if ((len(rule.body) == 0) and len(rule.head_variables()) == 0 and not (name in not_edbs)):
 		try:
 		    edbs[name].add(tuple(rule.head.args)) 
+		# first time
 		except KeyError:
 		    new_set = set([])
 		    new_set.add(tuple(rule.head.args))
@@ -389,8 +387,8 @@ class Z3Theory(object):
 	 
 	return new_rules
 
-    def unfold_edbs(self,edbs):
 
+    def unfold_edbs(self,edbs):
 
 	for edb in edbs.keys():
 	    # we store the changes to avoid modifying the rule list while iterating over it
@@ -422,15 +420,17 @@ class Z3Theory(object):
 	for rem in to_remove:
 	    self.rules.remove(rem) 
 
+    # TODO: check multiple occurences of a partially stable pred in a body
     def unfold_partially_stable_pred(self,rule,pred,values):
-        pos = {}
+        # positions of the variables of pred
+	pos = {}
 	ground_pos = values.keys()
         # changed happed
         found = False
         new_rules = []
 
         # looking for a rule carrying pred in its body and storing its variables
-        for atom in rule.body:
+	for atom in rule.body:
             if atom.table.name == pred:
                 i = 0
                 for arg in atom.args:
@@ -465,11 +465,12 @@ class Z3Theory(object):
     def unfold_partially_stable_preds(self,values):
 
         for pred in values.keys():
-            # we store the changes to avoid modifying the rule list while iterating over it
+            # storing the changes to avoid modifying the rule list while iterating over it
             # rules to remove
             to_remove = []
             # rules to add
             to_add = []
+	
             for rule in self.rules:
 		if not (rule.protected):
                     new_rules = self.unfold_partially_stable_pred(rule,pred,values[pred])
@@ -517,16 +518,13 @@ class Z3Theory(object):
 	# and thus need to compute a fixpoint of this unfolding
 	
 	# TODO: fixpoint of that
+	# TODO: compute order of the unfoldings?
 	pred_stable_ground_values = self.get_partially_ground_preds()
 	self.unfold_partially_stable_preds(pred_stable_ground_values)
-	print("pred_stable_ground_values = "+str(pred_stable_ground_values))
-	print("rules at the end of preprocessing :\n"+str(self.rules))	
 
     def build_rules(self):
         
 	self.pre_processing()
-
-	#print("Rules après préprocessing = "+str(self.rules))
 
 	for rule in self.rules:
             head = self.compile_atom(self.vars, rule.head)
