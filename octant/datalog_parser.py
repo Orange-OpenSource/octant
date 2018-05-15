@@ -16,6 +16,8 @@
 
 from __future__ import print_function
 
+import six
+
 from ply import lex
 from ply import yacc
 
@@ -54,7 +56,7 @@ t_ignore_COMMENT = r'\#.*'
 # before NUMBER and must be a function not a simple token.
 def t_IP(t):
     r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-    return t
+    return six.text_type(t)
 
 
 def t_NUMBER(t):
