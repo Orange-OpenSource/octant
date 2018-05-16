@@ -139,7 +139,7 @@ class Z3Theory(object):
             """Get a field compilation functions for cloud access"""
             type_name, access = fields_descr[field]
             type_field = self.types[type_name]
-            return (type_field.z3, access, type_field.marshall)
+            return (type_field.to_z3, access, type_field.marshall)
 
         def get_field_from_cache(field):
             """Get a field compilation functions for csv access"""
@@ -199,21 +199,22 @@ class Z3Theory(object):
                         table.append(row[1:])
             datasource = backup
         else:
-            password = cfg.CONF.password
+            openstack_conf = cfg.CONF.openstack
+            password = openstack_conf.password
             if password == "":
                 password = getpass.getpass()
             auth_args = {
-                'auth_url': cfg.CONF.www_authenticate_uri,
-                'project_name': cfg.CONF.project_name,
-                'username': cfg.CONF.user_name,
+                'auth_url': openstack_conf.www_authenticate_uri,
+                'project_name': openstack_conf.project_name,
+                'username': openstack_conf.user_name,
                 'password': password,
-                'user_domain_name': cfg.CONF.user_domain_name,
-                'project_domain_name': cfg.CONF.project_domain_name,
+                'user_domain_name': openstack_conf.user_domain_name,
+                'project_domain_name': openstack_conf.project_domain_name,
             }
-            if not cfg.CONF.verify:
+            if not openstack_conf.verify:
                 urllib3.disable_warnings()
             auth = identity.Password(**auth_args)
-            sess = session.Session(auth=auth, verify=cfg.CONF.verify)
+            sess = session.Session(auth=auth, verify=openstack_conf.verify)
             conn = connection.Connection(session=sess)
             neutron_cnx = neutronclient.Client(session=sess)
             datasource = (conn, neutron_cnx)

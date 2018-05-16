@@ -17,7 +17,8 @@ from oslo_config import cfg
 
 from octant import version
 
-OPTIONS = [
+OPENSTACK_OPTIONS = [
+    cfg.BoolOpt('enabled', default=True, help='Enable Openstack predicates'),
     cfg.StrOpt('www_authenticate_uri', default='http://127.0.0.1/identity',
                help='Keystone URI for authentication (as admin).'),
     cfg.StrOpt('project_name', default=None, help='Project name'),
@@ -29,6 +30,17 @@ OPTIONS = [
     cfg.BoolOpt('verify', default=True, help='Verification of certificates'),
     cfg.BoolOpt('all_projects', default=True,
                 help='Gives back results for all tenants')
+]
+
+SKYDIVE_OPTIONS = [
+    cfg.BoolOpt('enabled', default=False, help='Enable Skydive predicates'),
+    cfg.StrOpt('endpoint', default='127.0.0.1:8082',
+               help='Exposed skydive endpoint.'),
+    cfg.StrOpt('user_name', default='', help='User name'),
+    cfg.StrOpt('password', default='', help='Password of user for connection'),
+    cfg.StrOpt('scheme', default='http',
+               help='Connection scheme (http or https)'),
+    cfg.BoolOpt('verify', default=True, help='Verification of certificates'),
 ]
 
 CLI_OPTIONS = [
@@ -44,7 +56,8 @@ CLI_OPTIONS = [
     cfg.BoolOpt('time', help="Print timing of the different phases.")
 ]
 
-cfg.CONF.register_opts(OPTIONS)
+cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')
+cfg.CONF.register_opts(SKYDIVE_OPTIONS, group='skydive')
 cfg.CONF.register_cli_opts(CLI_OPTIONS)
 
 
@@ -57,4 +70,6 @@ def init(args, **kwargs):
 
 def list_opts():
     """List config file options for documentation generation"""
-    return [('DEFAULT', OPTIONS)]
+    return [
+        ('openstack', OPENSTACK_OPTIONS),
+        ('skydive', SKYDIVE_OPTIONS)]
