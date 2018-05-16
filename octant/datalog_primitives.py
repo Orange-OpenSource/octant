@@ -91,10 +91,10 @@ class StringType(Z3Type):
         if val in self.map:
             return self.map[val]
         code = len(self.map)
-        val = z3.BitVecVal(code, self.type_instance)
-        self.map[val] = val
+        bvect = z3.BitVecVal(code, self.type_instance)
+        self.map[val] = bvect
         self.back[code] = val
-        return val
+        return bvect
 
     def marshall(self, val):
         return MARSHALLED_NONE if val is None else val
