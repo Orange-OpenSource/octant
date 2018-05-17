@@ -35,6 +35,7 @@ from octant import datalog_primitives as primitives
 from octant import datalog_source as source
 from octant import datalog_typechecker as typechecker
 from octant import options
+from octant import source_openstack
 
 
 def z3_to_array(expr):
@@ -71,7 +72,7 @@ class Z3Theory(object):
         self.rules = rules
         self.types = primitives.TYPES
         self.datasource = source.Datasource(self.types)
-        primitives.register_openstack(self.datasource)
+        source_openstack.register(self.datasource)
 
         self.compile_instance = (
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
