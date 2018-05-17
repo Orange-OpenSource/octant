@@ -406,13 +406,13 @@ NEUTRON_TABLES = {
 
 
 def register(datasource):
+    openstack_conf = cfg.CONF.openstack
+    if not openstack_conf.enabled:
+        return
     if datasource.use_cache():
         openstack_cnx = None
         neutron_cnx = None
     else:
-        openstack_conf = cfg.CONF.openstack
-        if not openstack_conf.enabled:
-            return
         password = openstack_conf.password
         if password == "":
             password = getpass.getpass()
