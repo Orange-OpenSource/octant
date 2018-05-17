@@ -15,10 +15,16 @@
 """Primitive tables exported from OpenStack for Datalog"""
 import abc
 import collections
+import getpass
 import ipaddress
 import six
+import urllib3
 import z3
 
+from keystoneauth1 import identity
+from keystoneauth1 import session
+from neutronclient.v2_0 import client as neutronclient
+from openstack import connection
 from oslo_config import cfg
 
 from octant import datalog_ast as ast
@@ -330,7 +336,7 @@ def _project_scope(pval):
 
 
 # Describes how to bind values extracted from the to Python table.
-TABLES = {
+OPENSTACK_TABLES = {
     "network": (lambda conn: conn.network.networks(), {
         "id": ("id", lambda n: n.id),
         "project_id": ("id", lambda n: n.project_id),
@@ -598,6 +604,30 @@ NEUTRON_TABLES = {
 }
 
 
-def is_primitive_atom(atom):
-    "Check if a atom refers to a primitive table."
-    return atom.table in TABLES or atom.table in NEUTRON_TABLES
+def register_openstack(datasource):
+    if datasource.use_cache():
+        openstack_cnx = None
+        neutron_cnx = None
+    else:
+        openstack_conf = cfg.CONF.openstack
+        if not openstack_conf.enabled:
+            return
+        password = openstack_conf.password
+        if password == "":
+            password = getpass.getpass()
+        auth_args = {
+            'auth_url': openstack_conf.www_authenticate_uri,
+            'project_name': openstack_conf.project_name,
+            'username': openstack_conf.user_name,
+            'password': password,
+            'user_domain_name': openstack_conf.user_domain_name,
+            'project_domain_name': openstack_conf.project_domain_name,
+        }
+        if not openstack_conf.verify:
+            urllib3.disable_warnings()
+        auth = identity.Password(**auth_args)
+        sess = session.Session(auth=auth, verify=openstack_conf.verify)
+        openstack_cnx = connection.Connection(session=sess)
+        neutron_cnx = neutronclient.Client(session=sess)
+    datasource.register(neutron_cnx, NEUTRON_TABLES)
+    datasource.register(openstack_cnx, OPENSTACK_TABLES)

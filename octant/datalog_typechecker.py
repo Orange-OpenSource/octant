@@ -26,7 +26,7 @@ class Z3TypeError(Exception):
         super(Z3TypeError, self).__init__(self, *args, **kwargs)
 
 
-def type_theory(rules, primitive_tables):
+def type_theory(rules, primitive_tables, datasource):
     """Types a given set of rules"""
 
     def prepare_typing():
@@ -35,17 +35,7 @@ def type_theory(rules, primitive_tables):
         dict_tables = {}
         # Initialize the types of primitive tables in use.
         for (table, fields) in primitive_tables.items():
-            if table in primitives.TABLES:
-                prim = primitives.TABLES[table][1]
-            elif table in primitives.NEUTRON_TABLES:
-                prim = primitives.NEUTRON_TABLES[table][1]
-            else:
-                raise Z3TypeError("Unknown primitive {}".format(table))
-            try:
-                args = [prim[field][0] for field in fields]
-            except KeyError as exc:
-                raise Z3TypeError(
-                    "Unknown field {} in table {}".format(exc.args[0], table))
+            args = datasource.get_table_types(table, fields)
             dict_tables[table] = ast.TypedTable(table, args)
 
         def subst_var(arg):

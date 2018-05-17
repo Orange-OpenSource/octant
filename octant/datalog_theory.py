@@ -17,27 +17,22 @@
 from __future__ import print_function
 
 import csv
-import getpass
 import sys
 import textwrap
 import time
-import urllib3
 
 import prettytable
 import six
 from six import moves
 import z3
 
-from keystoneauth1 import identity
-from keystoneauth1 import session
-from neutronclient.v2_0 import client as neutronclient
-from openstack import connection
 from oslo_config import cfg
 
 from octant import datalog_ast as ast
 from octant import datalog_compiler as compiler
 from octant import datalog_parser as parser
 from octant import datalog_primitives as primitives
+from octant import datalog_source as source
 from octant import datalog_typechecker as typechecker
 from octant import options
 
@@ -74,8 +69,12 @@ class Z3Theory(object):
 
     def __init__(self, rules):
         self.rules = rules
+        self.types = primitives.TYPES
+        self.datasource = source.Datasource(self.types)
+        primitives.register_openstack(self.datasource)
+
         self.compile_instance = (
-            compiler.Z3Compiler(rules, primitives.CONSTANTS))
+            compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
         primitive_tables, typed_tables = self.compile_instance.compile()
         self.primitive_tables = primitive_tables
         self.typed_tables = typed_tables
@@ -85,8 +84,6 @@ class Z3Theory(object):
         context = z3.Fixedpoint()
         context.set(engine='datalog')
         self.context = context
-
-        self.types = primitives.TYPES
 
     def build_theory(self):
         """Builds the Z3 theory"""
@@ -113,122 +110,15 @@ class Z3Theory(object):
             self.context.register_relation(relation)
             self.relations[name] = relation
 
-    def retrieve_table(self, datasource, writer, table_name, fields):
-        """Get the facts on the cloud or in the csv cache"""
-        use_cache = isinstance(datasource, dict)
-        if table_name in primitives.TABLES:
-            accessor, fields_descr = primitives.TABLES[table_name]
-            if use_cache:
-                (index, objs) = datasource.get(table_name, [])
-            else:
-                index = None
-                objs = accessor(datasource[0])
-        elif table_name in primitives.NEUTRON_TABLES:
-            accessor, fields_descr = primitives.NEUTRON_TABLES[table_name]
-            if use_cache:
-                (index, objs) = datasource.get(table_name, [])
-            else:
-                index = None
-                objs = accessor(datasource[1])
-        else:
-            raise typechecker.Z3TypeError(
-                'Unknown primitive relation {}'.format(table_name))
-        relation = self.relations[table_name]
-
-        def get_field(field):
-            """Get a field compilation functions for cloud access"""
-            type_name, access = fields_descr[field]
-            type_field = self.types[type_name]
-            return (type_field.to_z3, access, type_field.marshall)
-
-        def get_field_from_cache(field):
-            """Get a field compilation functions for csv access"""
-            type_name, _ = fields_descr[field]
-            type_field = self.types[type_name]
-            print(index)
-            print(field)
-            try:
-                pos = index.index(field)
-            except ValueError:
-                raise compiler.Z3NotWellFormed(
-                    "Field {} was not saved for table {}".format(
-                        field,
-                        table_name))
-            return (
-                type_field.z3,
-                lambda row: type_field.unmarshall(row[pos]),
-                type_field.marshall)
-
-        if use_cache:
-            access_fields = [get_field_from_cache(field) for field in fields]
-        else:
-            access_fields = [get_field(field) for field in fields]
-        if writer is not None:
-            writer.writerow([table_name] + fields)
-        for obj in objs:
-            try:
-                extracted = [
-                    (typ, acc(obj), marshall)
-                    for (typ, acc, marshall) in access_fields]
-                if writer is not None:
-                    writer.writerow(
-                        [table_name] +
-                        [marshall(raw) for (_, raw, marshall) in extracted])
-                self.context.fact(relation(
-                    *[typ(raw) for (typ, raw, _) in extracted]))
-            except Exception as exc:
-                print("Error while retrieving table {} on {}".format(
-                    table_name, obj))
-                raise exc
-
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
-        if cfg.CONF.restore is not None:
-            with open(cfg.CONF.restore, 'r') as csvfile:
-                csvreader = csv.reader(csvfile)
-                backup = {}
-                current = ''
-                table = []
-                for row in csvreader:
-                    tablename = row[0]
-                    if tablename != current:
-                        table = []
-                        current = tablename
-                        backup[tablename] = (row[1:], table)
-                    else:
-                        table.append(row[1:])
-            datasource = backup
-        else:
-            openstack_conf = cfg.CONF.openstack
-            password = openstack_conf.password
-            if password == "":
-                password = getpass.getpass()
-            auth_args = {
-                'auth_url': openstack_conf.www_authenticate_uri,
-                'project_name': openstack_conf.project_name,
-                'username': openstack_conf.user_name,
-                'password': password,
-                'user_domain_name': openstack_conf.user_domain_name,
-                'project_domain_name': openstack_conf.project_domain_name,
-            }
-            if not openstack_conf.verify:
-                urllib3.disable_warnings()
-            auth = identity.Password(**auth_args)
-            sess = session.Session(auth=auth, verify=openstack_conf.verify)
-            conn = connection.Connection(session=sess)
-            neutron_cnx = neutronclient.Client(session=sess)
-            datasource = (conn, neutron_cnx)
-        if cfg.CONF.save is not None:
-            with open(cfg.CONF.save, mode='w') as csvfile:
-                csv_writer = csv.writer(csvfile)
-                self.retrieve_data_with_cnx(datasource, csv_writer)
-        else:
-            self.retrieve_data_with_cnx(datasource, None)
+        with self.datasource:
+            for table_name, fields in six.iteritems(self.primitive_tables):
+                relation = self.relations[table_name]
 
-    def retrieve_data_with_cnx(self, datasource, save_cnx):
-        """Get facts from connection"""
-        for table_name, fields in six.iteritems(self.primitive_tables):
-            self.retrieve_table(datasource, save_cnx, table_name, fields)
+                def mk_relation(args):
+                    self.context.fact(relation(args))
+                self.datasource.retrieve_table(table_name, fields, mk_relation)
 
     def compile_expr(self, variables, expr):
         """Compile an expression to Z3"""

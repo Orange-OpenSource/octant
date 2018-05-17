@@ -31,10 +31,11 @@ class Z3NotWellFormed(Exception):
 class Z3Compiler(object):
     """Prepare octant Datalog for compilation to Z3 (primitive tables)."""
 
-    def __init__(self, rules, constants):
+    def __init__(self, rules, constants, datasource):
         self.rules = rules
         self.primitive_tables = {}
         self.var_count = 0
+        self.datasource = datasource
         self.constants = constants
 
     def compile(self):
@@ -48,7 +49,7 @@ class Z3Compiler(object):
         self.rename_variables()
         self.find_base_relations()
         typed_tables = typechecker.type_theory(
-            self.rules, self.primitive_tables)
+            self.rules, self.primitive_tables, self.datasource)
         return self.primitive_tables, typed_tables
 
     def substitutes_constants_in_array(self, args):
@@ -106,10 +107,10 @@ class Z3Compiler(object):
     def find_base_relations(self):
         """Extracts base relations of the theory"""
         for rule in self.rules:
-            if primitives.is_primitive_atom(rule.head):
+            if self.datasource.is_primitive(rule.head):
                 raise Z3NotWellFormed("No base predicate allowed in head.")
             for atom in rule.body:
-                if not primitives.is_primitive_atom(atom):
+                if not self.datasource.is_primitive(atom):
                     continue
                 fields = self.primitive_tables.setdefault(atom.table, [])
                 for arg in atom.args:
@@ -122,7 +123,7 @@ class Z3Compiler(object):
             fields.sort()
         for rule in self.rules:
             for atom in rule.body:
-                if primitives.is_primitive_atom(atom):
+                if self.datasource.is_primitive(atom):
                     self.flatten(atom, self.primitive_tables[atom.table])
 
     def flatten(self, atom, fields):
