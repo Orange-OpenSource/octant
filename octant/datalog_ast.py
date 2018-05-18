@@ -88,13 +88,13 @@ class Expr(AST):
 
     def variables(self):
         """Free variables (default is none)"""
-        return []
+        return set()
 
     def str_label(self, s_expr):
         """Pretty print with label if label exists"""
         return (
             s_expr if self.label is None
-            else "{}: {}".format(self.label, s_expr))
+            else "{}={}".format(self.label, s_expr))
 
     def rename_variables(self, renaming):
         """Variable renaming (default is nothing)"""
@@ -109,7 +109,7 @@ class Variable(Expr):
         self.id = ident
 
     def variables(self):
-        return [self.id]
+        return set([self.id])
 
     def __repr__(self):
         expr_repr = (
@@ -145,10 +145,10 @@ class Operation(Expr):
 class NumConstant(Expr):
     "A numeric constant"
 
-    def __init__(self, val, label=None, type=None):
+    def __init__(self, val, label=None, type='int'):
         super(NumConstant, self).__init__(
             label=label,
-            type='int' if type is None else type)
+            type=type)
         self.val = val
 
     def __repr__(self):
@@ -158,7 +158,7 @@ class NumConstant(Expr):
 class StringConstant(Expr):
     "A string constant"
 
-    def __init__(self, val, label=None, type=None):
+    def __init__(self, val, label=None, type='string'):
         super(StringConstant, self).__init__(label=label, type=type)
         self.val = val
 
