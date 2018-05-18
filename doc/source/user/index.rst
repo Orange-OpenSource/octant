@@ -7,7 +7,9 @@ etc.)
 
 `octant` requires three kind of entries:
 
-* A configuration file to connect to an OpenStack cloud as admin.
+* A configuration file to connect to one or several sources of information:
+  * an OpenStack cloud as admin,
+  * a skydive analyzer.
 * One or several rule files that define the Datalog program and the data
   to retrieve
 * One or several queries to ask.
@@ -588,6 +590,73 @@ role_id     id       id or role
 project_id  id       id of project scope
 user_id     id       id of user 
 ==========  =======  =======================
+
+-------------------------
+Skydive Exported Tables
+-------------------------
+
+We have chosen to prefix each Skydive table with ``sk_``
+
+Nodes
+=====
+
+sk_host
+-------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+id                id       An internal id for the node
+name              string   The name of the host
+platform          string   The OS flavour (typically ubuntu, debian)
+================  =======  =========================================
+
+sk_ovsswitch
+------------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+id                id       An internal id for the node
+name              string   The name of the openvswitch instance
+================  =======  =========================================
+
+sk_ovsbridge
+------------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+id                id       An internal id for the node
+name              string   The name of the bridge
+================  =======  =========================================
+
+sk_ovsport
+----------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+id                id       An internal id for the node
+name              string   The name of the host
+================  =======  =========================================
+
+Edges
+=====
+
+sk_owns
+-------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+owner             id       Owner
+item              id       Owned item
+================  =======  =========================================
+
+sk_l2
+-----
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+a                 id       One end (no order implied)
+b                 id       Other end (no order implied)
+================  =======  =========================================
 
 ----------
 An Example
