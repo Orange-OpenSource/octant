@@ -56,6 +56,13 @@ TABLE = {
             "platform": ("string", metadata("Platform"))
         }
     ),
+    "sk_ovsswitch": (
+        filter_node("ovsswitch"),
+        {
+            "id": ("id", id),
+            "name": ("string", metadata("Name")),
+        }
+    ),
     "sk_ovsbridge": (
         filter_node("ovsbridge"),
         {
@@ -70,6 +77,16 @@ TABLE = {
             "name": ("string", metadata("Name")),
         }
     ),
+    "sk_rule": (
+        filter_node("ofrule"),
+        {
+            "id": ("id", id),
+            "priority": ("int", metadata("priority")),
+            "table": ("int", metadata("table")),
+            "filters": ("string", metadata("filters")),
+            "actions": ("string", metadata("actions")),
+        }
+    ),
     "sk_owns": (
         filter_rel("ownership"),
         {
@@ -77,11 +94,11 @@ TABLE = {
             "item": ("id", child)
         }
     ),
-    "sk_layer2": (
+    "sk_l2": (
         filter_rel("layer2"),
         {
-            "src": ("id", parent),
-            "dst": ("id", child)
+            "a": ("id", parent),
+            "b": ("id", child)
         }
     )
 }
