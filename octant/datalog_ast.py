@@ -18,8 +18,8 @@
 class AST(object):
     """Base ast (abstract syntax tree) type for octant Datalog"""
 
-    # pylint: disable=too-few-public-methods
-    pass
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class Rule(AST):
@@ -54,6 +54,11 @@ class Rule(AST):
     def __repr__(self):
         return "{} :- {}".format(self.head, self.body)
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.head == self.head and other.body == self.body
+        return False
+
 
 class Atom(AST):
     """Represents an atom either in the head or body"""
@@ -77,6 +82,12 @@ class Atom(AST):
             "~" if self.negated else "",
             self.table,
             str(self.args)[1:-1])
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (other.table == self.table and other.args == self.args and
+                    other.negated == self.negated)
+        return False
 
 
 class Expr(AST):
@@ -121,6 +132,11 @@ class Variable(Expr):
         if self.id in renaming:
             self.id = renaming[self.id]
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (other.id == self.id)
+        return False
+
 
 class Operation(Expr):
     "An n-ary operation"
@@ -141,6 +157,12 @@ class Operation(Expr):
     def __repr__(self):
         return "{}({})".format(self.operation, self.args)
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (other.operation == self.operation and
+                    other.args == self.args)
+        return False
+
 
 class NumConstant(Expr):
     "A numeric constant"
@@ -154,6 +176,11 @@ class NumConstant(Expr):
     def __repr__(self):
         return self.str_label(str(self.val))
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (other.val == self.val and other.type == self.type)
+        return False
+
 
 class StringConstant(Expr):
     "A string constant"
@@ -164,6 +191,11 @@ class StringConstant(Expr):
 
     def __repr__(self):
         return self.str_label('"{}"'.format(self.val))
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (other.val == self.val and other.type == self.type)
+        return False
 
 
 class BoolConstant(Expr):
@@ -176,6 +208,11 @@ class BoolConstant(Expr):
     def __repr__(self):
         return self.str_label(str(self.val))
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.val == self.val
+        return False
+
 
 class IpConstant(Expr):
     "An ip address constant"
@@ -186,6 +223,11 @@ class IpConstant(Expr):
 
     def __repr__(self):
         return self.str_label(self.val)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.val == self.val
+        return False
 
 
 class TypedTable(object):
@@ -208,3 +250,8 @@ class Constant(AST):
 
     def __str__(self):
         return self.name
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.name == self.name
+        return False
