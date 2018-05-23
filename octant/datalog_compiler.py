@@ -83,7 +83,7 @@ class Z3Compiler(object):
 
         def rename_var(old, count=0):
             """Rename a variable"""
-            newname = "{}:{}".format(old, count)
+            newname = "{}_{}".format(old, count)
             if newname in known:
                 return rename_var(old, count + 1)
             known.add(newname)
