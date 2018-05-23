@@ -56,11 +56,12 @@ t_ignore_COMMENT = r'\#.*'
 # before NUMBER and must be a function not a simple token.
 def t_IP(t):
     r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-    return six.text_type(t)
+    t.value = six.text_type(t.value)
+    return t
 
 
 def t_NUMBER(t):
-    r'\d+'
+    r'-?\d+'
     try:
         t.value = int(t.value)
     except ValueError:
@@ -71,7 +72,7 @@ def t_NUMBER(t):
 
 def t_STRING(t):
     r'("(\\"|\\\\|[^"\\])*")'
-    t.value = t.value[1:-1]
+    t.value = t.value[1:-1].replace('\\\\', '\\').replace('\\"', '"')
     return t
 
 
@@ -147,12 +148,22 @@ def p_positive(t):
     t[0] = ast.Atom(table=t[1], args=t[3])
 
 
+def p_positive_named(t):
+    'positive : IDENT OPAR expr_list_named CPAR'
+    t[0] = ast.Atom(table=t[1], args=t[3][1], labels=t[3][0])
+
+
+def p_positive_empty(t):
+    'positive : IDENT OPAR CPAR'
+    t[0] = ast.Atom(table=t[1], args=[])
+
+
 def p_positive_eq(t):
-    '''positive : texpr EQUAL eexpr
-                | texpr LT eexpr
-                | texpr LE eexpr
-                | texpr GT eexpr
-                | texpr GE eexpr
+    '''positive : expr EQUAL eexpr
+                | expr LT eexpr
+                | expr LE eexpr
+                | expr GT eexpr
+                | expr GE eexpr
     '''   # noqa: H405
     t[0] = ast.Atom(table=t[2], args=[t[1], t[3]])
 
@@ -168,25 +179,26 @@ def p_expr_list_many(t):
     t[0] = t[1]
 
 
-def p_expr_named(t):
-    'expr : IDENT EQUAL texpr'
-    t[3].label = t[1]
-    t[0] = t[3]
+def p_expr_named_one(t):
+    'expr_list_named : IDENT EQUAL expr'
+    t[0] = ([t[1]], [t[3]])
 
 
-def p_expr_simple(t):
-    'expr : texpr'
+def p_expr_named_many(t):
+    'expr_list_named : expr_list_named COMMA IDENT EQUAL expr'
+    t[1][0].append(t[3])
+    t[1][1].append(t[5])
     t[0] = t[1]
 
 
 def p_expr_type(t):
-    'texpr : sexpr COLON IDENT'
+    'expr : sexpr COLON IDENT'
     t[1].type = t[3]
     t[0] = t[1]
 
 
 def p_expr_no_type(t):
-    'texpr : sexpr'
+    'expr : sexpr'
     t[0] = t[1]
 
 
@@ -216,7 +228,7 @@ def p_sexpr_ident(t):
 
 
 def p_eexpr_expr(t):
-    'eexpr : texpr'
+    'eexpr : expr'
     t[0] = t[1]
 
 
@@ -245,7 +257,7 @@ def p_error(t):
     if not t:
         print("Syntax error: EOF reached")
     else:
-        print("Syntax error at %s" % t)
+        print("Syntax error at token '%s' (line %d)" % (t.value, t.lineno))
         while True:
             tok = parser.token()
             if not tok or tok.type == 'DOT':

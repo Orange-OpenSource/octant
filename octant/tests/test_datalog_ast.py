@@ -31,10 +31,8 @@ class TestVariable(base.TestCase):
         '''constructor'''
         v = ast.Variable('id')
         self.assertEqual('id', v.id)
-        self.assertIsNone(v.label)
         self.assertIsNone(v.type)
-        v = ast.Variable('id', label='l', type='string')
-        self.assertEqual('l', v.label)
+        v = ast.Variable('id', type='string')
         self.assertEqual('string', v.type)
 
     def test_variables(self):
@@ -51,8 +49,8 @@ class TestVariable(base.TestCase):
         self.assertEqual('new', v.id)
 
     def test_str(self):
-        v = ast.Variable('V', label='l', type='string')
-        self.assertEqual('l=V:string', str(v))
+        v = ast.Variable('V', type='string')
+        self.assertEqual('V:string', str(v))
 
     def test_eq(self):
         self.assertIs(True, ast.Variable('V') == ast.Variable('V'))
@@ -65,13 +63,10 @@ class TestConstant(base.TestCase):
         c = ast.NumConstant(5)
         self.assertEqual(5, c.val)
         self.assertEqual('int', c.type)
-        self.assertIsNone(c.label)
         self.assertEqual(0, len(c.variables()))
         c = ast.NumConstant(3, type='int4')
         self.assertEqual(3, c.val)
         self.assertEqual('int4', c.type)
-        c = ast.NumConstant(2, label='l')
-        self.assertEqual('l', c.label)
 
     def test_num_eq(self):
         self.assertIs(True, ast.NumConstant(2) == ast.NumConstant(2))
@@ -83,7 +78,6 @@ class TestConstant(base.TestCase):
         c = ast.StringConstant('foo')
         self.assertEqual('foo', c.val)
         self.assertEqual('string', c.type)
-        self.assertIsNone(c.label)
         self.assertEqual(0, len(c.variables()))
         c = ast.NumConstant('aaa-bbb', type='id')
         self.assertEqual('aaa-bbb', c.val)

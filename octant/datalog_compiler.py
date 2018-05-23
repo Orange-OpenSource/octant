@@ -62,7 +62,6 @@ class Z3Compiler(object):
                     raise Z3NotWellFormed(
                         "Unknown constant: {}".format(args[i].name))
                 args[i] = copy.deepcopy(arg)
-                args[i].label = oarg.label
 
             elif isinstance(args[i], ast.Operation):
                 nb_vars = primitives.OPERATIONS[args[i].operation].ty_vars
@@ -113,12 +112,12 @@ class Z3Compiler(object):
                 if not self.datasource.is_primitive(atom):
                     continue
                 fields = self.primitive_tables.setdefault(atom.table, [])
-                for arg in atom.args:
-                    if arg.label is None:
-                        raise Z3NotWellFormed(
-                            "No label for {} in {}".format(arg, atom))
-                    if arg.label not in fields:
-                        fields.append(arg.label)
+                if atom.labels is None:
+                    raise Z3NotWellFormed(
+                        "No labels for primitive atom {}".format(atom))
+                for label in atom.labels:
+                    if label not in fields:
+                        fields.append(label)
         for fields in self.primitive_tables.values():
             fields.sort()
         for rule in self.rules:
@@ -139,13 +138,15 @@ class Z3Compiler(object):
             self.var_count += 1
             return ast.Variable("::{}".format(self.var_count))
 
-        for arg in atom.args:
-            if arg.label in dict_arg:
-                raise Z3NotWellFormed("Duplicate label in atom")
-            dict_arg[arg.label] = arg
-            arg.label = None
+        for (label, arg) in zip(atom.labels, atom.args):
+            if label in dict_arg:
+                raise Z3NotWellFormed(
+                    "Duplicate label '{}' in atom {}".format(label, atom))
+            dict_arg[label] = arg
 
         atom.args = [
             dict_arg[label] if label in dict_arg else new_var()
             for label in fields
         ]
+        # Hide labels for pretty printing.
+        atom.labels = None

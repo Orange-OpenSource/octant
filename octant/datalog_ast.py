@@ -63,10 +63,11 @@ class Rule(AST):
 class Atom(AST):
     """Represents an atom either in the head or body"""
 
-    def __init__(self, table, args, negated=False):
+    def __init__(self, table, args, negated=False, labels=None):
         self.table = table
         self.args = args
         self.negated = negated
+        self.labels = labels
 
     def variables(self):
         """Variables of the atom"""
@@ -81,31 +82,28 @@ class Atom(AST):
         return "{}{}({})".format(
             "~" if self.negated else "",
             self.table,
-            str(self.args)[1:-1])
+            (', '.join('{} = {}'.format(lab, val)
+                       for (lab, val) in zip(self.labels, self.args))
+             if self.labels is not None
+             else ', '.join(str(val) for val in self.args)))
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (other.table == self.table and other.args == self.args and
-                    other.negated == self.negated)
+                    other.negated == self.negated and
+                    other.labels == self.labels)
         return False
 
 
 class Expr(AST):
-    "An abstract expression with an optional label"
+    "An abstract expression with an optional"
 
-    def __init__(self, label=None, type=None):
-        self.label = label
+    def __init__(self, type=None):
         self.type = type
 
     def variables(self):
         """Free variables (default is none)"""
         return set()
-
-    def str_label(self, s_expr):
-        """Pretty print with label if label exists"""
-        return (
-            s_expr if self.label is None
-            else "{}={}".format(self.label, s_expr))
 
     def rename_variables(self, renaming):
         """Variable renaming (default is nothing)"""
@@ -115,8 +113,8 @@ class Expr(AST):
 class Variable(Expr):
     "A variable (scope rule)"
 
-    def __init__(self, ident, label=None, type=None):
-        super(Variable, self).__init__(label=label, type=type)
+    def __init__(self, ident, type=None):
+        super(Variable, self).__init__(type=type)
         self.id = ident
 
     def variables(self):
@@ -126,7 +124,7 @@ class Variable(Expr):
         expr_repr = (
             self.id if self.type is None
             else "{}:{}".format(self.id, self.type))
-        return self.str_label(expr_repr)
+        return expr_repr
 
     def rename_variables(self, renaming):
         if self.id in renaming:
@@ -167,14 +165,13 @@ class Operation(Expr):
 class NumConstant(Expr):
     "A numeric constant"
 
-    def __init__(self, val, label=None, type='int'):
+    def __init__(self, val, type='int'):
         super(NumConstant, self).__init__(
-            label=label,
             type=type)
         self.val = val
 
     def __repr__(self):
-        return self.str_label(str(self.val))
+        return str(self.val)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -185,12 +182,12 @@ class NumConstant(Expr):
 class StringConstant(Expr):
     "A string constant"
 
-    def __init__(self, val, label=None, type='string'):
-        super(StringConstant, self).__init__(label=label, type=type)
+    def __init__(self, val, type='string'):
+        super(StringConstant, self).__init__(type=type)
         self.val = val
 
     def __repr__(self):
-        return self.str_label('"{}"'.format(self.val))
+        return '"{}"'.format(self.val)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -201,12 +198,12 @@ class StringConstant(Expr):
 class BoolConstant(Expr):
     "A boolean constant"
 
-    def __init__(self, val, label=None):
-        super(BoolConstant, self).__init__(label=label, type='bool')
+    def __init__(self, val):
+        super(BoolConstant, self).__init__(type='bool')
         self.val = val
 
     def __repr__(self):
-        return self.str_label(str(self.val))
+        return str(self.val)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -217,12 +214,12 @@ class BoolConstant(Expr):
 class IpConstant(Expr):
     "An ip address constant"
 
-    def __init__(self, val, label=None):
-        super(IpConstant, self).__init__(label=label, type='ip_address')
+    def __init__(self, val):
+        super(IpConstant, self).__init__(type='ip_address')
         self.val = val
 
     def __repr__(self):
-        return self.str_label(self.val)
+        return self.val
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -244,9 +241,8 @@ class TypedTable(object):
 
 class Constant(AST):
     """A constant to be substituted"""
-    def __init__(self, name, label=None):
+    def __init__(self, name):
         self.name = name
-        self.label = label
 
     def __str__(self):
         return self.name
