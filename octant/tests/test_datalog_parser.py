@@ -90,8 +90,7 @@ class TestLexer(base.TestCase):
 
 
 def pp(s):
-    parser.lexer.lineno = 0
-    return parser.parser.parse(s)
+    return parser.wrapped_parse(s)
 
 
 class TestParser(base.TestCase):

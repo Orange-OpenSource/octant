@@ -23,6 +23,14 @@ from ply import yacc
 
 from octant import datalog_ast as ast
 
+
+class Z3ParseError(Exception):
+    """Raised on syntax errors at end of parsing."""
+
+    def __init__(self, *args, **kwargs):
+        super(Z3ParseError, self).__init__(self, *args, **kwargs)
+
+
 # Not changing ply conventions because of pylint
 # pylint: disable=invalid-name
 
@@ -253,6 +261,7 @@ def p_eexpr_not(t):
 
 
 def p_error(t):
+    parser.count_error += 1
     # pylint: disable=missing-docstring
     if not t:
         print("Syntax error: EOF reached")
@@ -268,15 +277,22 @@ def p_error(t):
 parser = yacc.yacc(write_tables=False, debug=False)
 
 
+def wrapped_parse(input):
+    lexer.lineno = 1
+    parser.count_error = 0
+    result = parser.parse(input)
+    if parser.count_error > 0:
+        raise Z3ParseError("{} errors".format(parser.count_error))
+    return result
+
+
 def parse_atom(query_str):
     """Parse a string considered as a query"""
-    lexer.lineno = 0
-    rules = parser.parse(query_str + ".")
+    rules = wrapped_parse(query_str + ".")
     return rules[0].head
 
 
 def parse_file(filename):
     """Parse a file"""
     with open(filename) as filestream:
-        lexer.lineno = 0
-        return parser.parse(filestream.read())
+        return wrapped_parse(filestream.read())

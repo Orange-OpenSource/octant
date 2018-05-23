@@ -243,8 +243,12 @@ def main():
         sys.exit(1)
     rules = []
     start = time.clock()
-    for rule_file in cfg.CONF.theory:
-        rules += parser.parse_file(rule_file)
+    try:
+        for rule_file in cfg.CONF.theory:
+            rules += parser.parse_file(rule_file)
+    except parser.Z3ParseError as exc:
+        print(exc.args[1])
+        sys.exit(1)
     if time_required:
         print("Parsing time: {}".format(time.clock() - start))
     start = time.clock()
@@ -269,4 +273,7 @@ def main():
         sys.exit(1)
     except typechecker.Z3TypeError as exc:
         print("Type error: {}".format(exc.args[1]))
+        sys.exit(1)
+    except parser.Z3ParseError:
+        print("Parser error in query.")
         sys.exit(1)
