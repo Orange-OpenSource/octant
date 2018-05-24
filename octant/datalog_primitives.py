@@ -138,10 +138,10 @@ class IpAddressType(Z3Type):
         return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
 
     def marshall(self, val):
-        return MARSHALLED_NONE if val is None else val
+        return val
 
     def unmarshall(self, val):
-        return None if val == MARSHALLED_NONE else val
+        return val
 
     def to_os(self, val):
         return ipaddress.ip_address(val.as_long()).compressed
@@ -152,12 +152,12 @@ TYPES = {
     'string': StringType('string'),
     'id': StringType('id'),
     'int': NumType('int'),
-    'int4': NumType('int', size=4),
+    'int4': NumType('int4', size=4),
     'direction': StringType('direction', size=2),
     'status': StringType('status', size=3),
     'ip_address': IpAddressType(),
-    'ip_version': StringType('direction', size=2),
-    'fw_action': StringType('direction', size=2)
+    'ip_version': StringType('ip_version', size=2),
+    'fw_action': StringType('fw_action', size=2)
 }
 
 
