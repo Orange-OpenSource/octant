@@ -202,7 +202,7 @@ Operation = collections.namedtuple(
 OPERATIONS = {
     "&": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x & y)),
     "|": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x | y)),
-    "~": Operation(args=[0], result=0, ty_vars=1, z3=(lambda x: x))
+    "~": Operation(args=[0], result=0, ty_vars=1, z3=(lambda x: ~x))
 }
 
 COMPARISON = {
