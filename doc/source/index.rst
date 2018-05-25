@@ -17,3 +17,4 @@ Welcome to the documentation of octant
    readme
    install/index
    user/index
+   reference/index
