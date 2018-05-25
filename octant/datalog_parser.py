@@ -261,8 +261,8 @@ def p_eexpr_not(t):
 
 
 def p_error(t):
-    parser.count_error += 1
     # pylint: disable=missing-docstring
+    parser.count_error += 1
     if not t:
         print("Syntax error: EOF reached")
     else:
@@ -277,10 +277,11 @@ def p_error(t):
 parser = yacc.yacc(write_tables=False, debug=False)
 
 
-def wrapped_parse(input):
+def wrapped_parse(intext):
+    """Parser entry point that resets the state of lexer and errors."""
     lexer.lineno = 1
     parser.count_error = 0
-    result = parser.parse(input)
+    result = parser.parse(intext)
     if parser.count_error > 0:
         raise Z3ParseError("{} errors".format(parser.count_error))
     return result

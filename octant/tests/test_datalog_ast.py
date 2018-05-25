@@ -32,14 +32,14 @@ class TestVariable(base.TestCase):
         v = ast.Variable('id')
         self.assertEqual('id', v.id)
         self.assertIsNone(v.type)
-        v = ast.Variable('id', type='string')
+        v = ast.Variable('id', dtype='string')
         self.assertEqual('string', v.type)
 
     def test_variables(self):
         v = ast.Variable('id')
-        l = v.variables()
-        self.assertEqual(1, len(l))
-        self.assertIs(True, 'id' in l)
+        lvars = v.variables()
+        self.assertEqual(1, len(lvars))
+        self.assertIs(True, 'id' in lvars)
 
     def test_renaming(self):
         v = ast.Variable('id')
@@ -49,7 +49,7 @@ class TestVariable(base.TestCase):
         self.assertEqual('new', v.id)
 
     def test_str(self):
-        v = ast.Variable('V', type='string')
+        v = ast.Variable('V', dtype='string')
         self.assertEqual('V:string', str(v))
 
     def test_eq(self):
@@ -64,7 +64,7 @@ class TestConstant(base.TestCase):
         self.assertEqual(5, c.val)
         self.assertEqual('int', c.type)
         self.assertEqual(0, len(c.variables()))
-        c = ast.NumConstant(3, type='int4')
+        c = ast.NumConstant(3, dtype='int4')
         self.assertEqual(3, c.val)
         self.assertEqual('int4', c.type)
 
@@ -72,14 +72,14 @@ class TestConstant(base.TestCase):
         self.assertIs(True, ast.NumConstant(2) == ast.NumConstant(2))
         self.assertIs(False, ast.NumConstant(3) == ast.NumConstant(2))
         self.assertIs(False,
-                      ast.NumConstant(2) == ast.NumConstant(2, type='int4'))
+                      ast.NumConstant(2) == ast.NumConstant(2, dtype='int4'))
 
     def test_string(self):
         c = ast.StringConstant('foo')
         self.assertEqual('foo', c.val)
         self.assertEqual('string', c.type)
         self.assertEqual(0, len(c.variables()))
-        c = ast.NumConstant('aaa-bbb', type='id')
+        c = ast.NumConstant('aaa-bbb', dtype='id')
         self.assertEqual('aaa-bbb', c.val)
         self.assertEqual('id', c.type)
 
@@ -89,7 +89,7 @@ class TestConstant(base.TestCase):
             False, ast.StringConstant('b') == ast.StringConstant('a'))
         self.assertIs(
             False,
-            ast.StringConstant('a') == ast.StringConstant('a', type='id'))
+            ast.StringConstant('a') == ast.StringConstant('a', dtype='id'))
 
     def test_bool(self):
         c = ast.BoolConstant(True)
@@ -143,11 +143,11 @@ class TestOperation(base.TestCase):
 
     def test_variables(self):
         o, _, _, _ = mk_o()
-        l = o.variables()
-        self.assertEqual(3, len(l))
-        self.assertIs(True, 'V1' in l)
-        self.assertIs(True, 'V2' in l)
-        self.assertIs(True, 'V3' in l)
+        lvars = o.variables()
+        self.assertEqual(3, len(lvars))
+        self.assertIs(True, 'V1' in lvars)
+        self.assertIs(True, 'V2' in lvars)
+        self.assertIs(True, 'V3' in lvars)
 
     def test_renaming(self):
         o, v1, v2, v3 = mk_o()
@@ -180,11 +180,11 @@ class TestAtom(base.TestCase):
 
     def test_variables(self):
         a, _, _, _ = mk_o()
-        l = a.variables()
-        self.assertEqual(3, len(l))
-        self.assertIs(True, 'V1' in l)
-        self.assertIs(True, 'V2' in l)
-        self.assertIs(True, 'V3' in l)
+        lvars = a.variables()
+        self.assertEqual(3, len(lvars))
+        self.assertIs(True, 'V1' in lvars)
+        self.assertIs(True, 'V2' in lvars)
+        self.assertIs(True, 'V3' in lvars)
 
     def test_renaming(self):
         a, v1, v2, v3 = mk_a()
@@ -229,23 +229,23 @@ class TestRule(base.TestCase):
 
     def test_head_variables(self):
         r, _, _, _ = mk_r()
-        l = r.head_variables()
-        self.assertEqual(2, len(l))
-        self.assertIs(True, 'V1' in l)
-        self.assertIs(False, 'V3' in l)
+        lvars = r.head_variables()
+        self.assertEqual(2, len(lvars))
+        self.assertIs(True, 'V1' in lvars)
+        self.assertIs(False, 'V3' in lvars)
 
     def test_body_variables(self):
         r, _, _, _ = mk_r()
-        l = r.body_variables()
-        self.assertEqual(3, len(l))
-        self.assertIs(True, 'V1' in l)
+        lvars = r.body_variables()
+        self.assertEqual(3, len(lvars))
+        self.assertIs(True, 'V1' in lvars)
 
     def test_body_tables(self):
         r, _, _, _ = mk_r()
-        l = r.body_tables()
-        self.assertEqual(2, len(l))
-        self.assertIs(True, 'q' in l)
-        self.assertIs(True, 'r' in l)
+        ltables = r.body_tables()
+        self.assertEqual(2, len(ltables))
+        self.assertIs(True, 'q' in ltables)
+        self.assertIs(True, 'r' in ltables)
 
     def test_renaming(self):
         r, v1, v2, v3 = mk_r()

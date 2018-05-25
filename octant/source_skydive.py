@@ -18,93 +18,98 @@ from oslo_config import cfg
 from skydive.rest import client as skydive_client
 
 
-def filter_node(type_value):
-    def filter(cnx):
+def _filter_node(type_value):
+    def _action(cnx):
         return cnx.lookup_nodes('G.V().Has("Type", "{}")'.format(type_value))
-    return filter
+    return _action
 
 
-def filter_rel(type_value):
-    def filter(cnx):
+def _filter_rel(type_value):
+    def _action(cnx):
         return cnx.lookup_edges(
             'G.E().Has("RelationType", "{}")'.format(type_value))
-    return filter
+    return _action
 
 
-def metadata(field):
-    return lambda x: x.metadata[field]
+def _metadata(field):
+    return lambda node: node.metadata[field]
 
 
-def id(x):
-    return x.id
+def _id(node):
+    return node.id
 
 
-def parent(x):
-    return x.parent
+def _parent(edge):
+    return edge.parent
 
 
-def child(x):
-    return x.child
+def _child(edge):
+    return edge.child
 
 
-TABLE = {
+#: Describes how to bind values extracted from the python skydive client.
+TABLES = {
     "sk_host": (
-        filter_node("host"),
+        _filter_node("host"),
         {
-            "id": ("id", id),
-            "name": ("string", metadata("Name")),
-            "platform": ("string", metadata("Platform"))
+            "id": ("id", _id),
+            "name": ("string", _metadata("Name")),
+            "platform": ("string", _metadata("Platform"))
         }
     ),
     "sk_ovsswitch": (
-        filter_node("ovsswitch"),
+        _filter_node("ovsswitch"),
         {
-            "id": ("id", id),
-            "name": ("string", metadata("Name")),
+            "id": ("id", _id),
+            "name": ("string", _metadata("Name")),
         }
     ),
     "sk_ovsbridge": (
-        filter_node("ovsbridge"),
+        _filter_node("ovsbridge"),
         {
-            "id": ("id", id),
-            "name": ("string", metadata("Name")),
+            "id": ("id", _id),
+            "name": ("string", _metadata("Name")),
         }
     ),
     "sk_ovsport": (
-        filter_node("ovsport"),
+        _filter_node("ovsport"),
         {
-            "id": ("id", id),
-            "name": ("string", metadata("Name")),
+            "id": ("id", _id),
+            "name": ("string", _metadata("Name")),
         }
     ),
     "sk_rule": (
-        filter_node("ofrule"),
+        _filter_node("ofrule"),
         {
-            "id": ("id", id),
-            "priority": ("int", metadata("priority")),
-            "table": ("int", metadata("table")),
-            "filters": ("string", metadata("filters")),
-            "actions": ("string", metadata("actions")),
+            "id": ("id", _id),
+            "priority": ("int", _metadata("priority")),
+            "table": ("int", _metadata("table")),
+            "filters": ("string", _metadata("filters")),
+            "actions": ("string", _metadata("actions")),
         }
     ),
     "sk_owns": (
-        filter_rel("ownership"),
+        _filter_rel("ownership"),
         {
-            "owner": ("id", parent),
-            "item": ("id", child)
+            "owner": ("id", _parent),
+            "item": ("id", _child)
         }
     ),
     "sk_l2": (
-        filter_rel("layer2"),
+        _filter_rel("layer2"),
         {
-            "a": ("id", parent),
-            "b": ("id", child)
+            "a": ("id", _parent),
+            "b": ("id", _child)
         }
     )
 }
 
 
 def register(datasource):
+    """Registers Skydive tables in the datasource
+
+    :param datasource: a datasource object to enrich
+    """
     conf = cfg.CONF.skydive
     if not conf.enabled:
         return
@@ -114,4 +119,4 @@ def register(datasource):
         cnx = skydive_client.RESTClient(
             conf.endpoint, scheme=conf.scheme,
             username=conf.user_name, password=conf.password)
-    datasource.register(cnx, TABLE)
+    datasource.register(cnx, TABLES)

@@ -37,6 +37,7 @@ class Z3Compiler(object):
         self.var_count = 0
         self.datasource = datasource
         self.constants = constants
+        self.typed_tables = {}
 
     def compile(self):
         """Compile preprocess high level Datalog.
@@ -48,9 +49,8 @@ class Z3Compiler(object):
         self.substitute_constants()
         self.rename_variables()
         self.find_base_relations()
-        typed_tables = typechecker.type_theory(
+        self.typed_tables = typechecker.type_theory(
             self.rules, self.primitive_tables, self.datasource)
-        return self.primitive_tables, typed_tables
 
     def substitutes_constants_in_array(self, args):
         """Substitute constants in arguments arrays"""

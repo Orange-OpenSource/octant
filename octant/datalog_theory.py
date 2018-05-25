@@ -71,16 +71,13 @@ class Z3Theory(object):
 
     def __init__(self, rules):
         self.rules = rules
-        self.types = primitives.TYPES
-        self.datasource = source.Datasource(self.types)
+        self.datasource = source.Datasource(primitives.TYPES)
         source_openstack.register(self.datasource)
         source_skydive.register(self.datasource)
 
-        self.compile_instance = (
+        self.compiler = (
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
-        primitive_tables, typed_tables = self.compile_instance.compile()
-        self.primitive_tables = primitive_tables
-        self.typed_tables = typed_tables
+        self.compiler.compile()
         self.relations = {}
         self.vars = {}
 
@@ -96,10 +93,10 @@ class Z3Theory(object):
 
     def build_relations(self):
         """Builds the compiled relations"""
-        for name, typed_table in six.iteritems(self.typed_tables):
+        for name, typed_table in six.iteritems(self.compiler.typed_tables):
             try:
                 param_types = [
-                    self.types[typename].type()
+                    self.datasource.types[typename].type()
                     for typename in typed_table.params]
             except KeyError as exc:
                 raise typechecker.Z3TypeError(
@@ -115,28 +112,28 @@ class Z3Theory(object):
 
     def retrieve_data(self):
         """Retrieve the network configuration data over the REST api"""
-        with self.datasource:
-            for table_name, fields in six.iteritems(self.primitive_tables):
-                relation = self.relations[table_name]
 
-                def mk_relation(args):
-                    self.context.fact(relation(args))
-                self.datasource.retrieve_table(table_name, fields, mk_relation)
+        # implementation warning: do not define in loop.
+        # Use an explicit closure.
+        def mk_relation(relation):
+            "Builds the Z3 relation"
+            return lambda args: self.context.fact(relation(args))
+        with self.datasource:
+            for table_name, fields in six.iteritems(
+                    self.compiler.primitive_tables):
+                relation = self.relations[table_name]
+                self.datasource.retrieve_table(
+                    table_name, fields, mk_relation(relation))
 
     def compile_expr(self, variables, expr):
         """Compile an expression to Z3"""
-        if isinstance(expr, ast.NumConstant):
-            return self.types['int'].to_z3(expr.val)
-        elif isinstance(expr, ast.StringConstant):
-            return self.types[expr.type].to_z3(expr.val)
-        elif isinstance(expr, ast.BoolConstant):
-            return self.types['bool'].to_z3(expr.val)
-        elif isinstance(expr, ast.IpConstant):
-            return self.types['ip_address'].to_z3(expr.val)
+        if isinstance(expr, (ast.NumConstant, ast.StringConstant,
+                             ast.BoolConstant, ast.IpConstant)):
+            return self.datasource.types[expr.type].to_z3(expr.val)
         elif isinstance(expr, ast.Variable):
             if expr.id in variables:
                 return variables[expr.id]
-            expr_type = self.types[expr.type].type()
+            expr_type = self.datasource.types[expr.type].type()
             var = z3.Const(expr.id, expr_type)
             self.context.declare_var(var)
             variables[expr.id] = var
@@ -169,11 +166,11 @@ class Z3Theory(object):
     def query(self, str_query):
         """Query a relation on the compiled theory"""
         atom = parser.parse_atom(str_query)
-        self.compile_instance.substitutes_constants_in_array(atom.args)
-        if atom.table not in self.typed_tables:
+        self.compiler.substitutes_constants_in_array(atom.args)
+        if atom.table not in self.compiler.typed_tables:
             raise compiler.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))
-        atom.table = self.typed_tables[atom.table]
+        atom.table = self.compiler.typed_tables[atom.table]
         if len(atom.table.params) != len(atom.args):
             raise compiler.Z3NotWellFormed(
                 "Arity of predicate inconsistency in {}".format(atom))
@@ -182,7 +179,7 @@ class Z3Theory(object):
         query = self.compile_atom({}, atom)
         self.context.query(query)
         types = [
-            self.types[arg.type]
+            self.datasource.types[arg.type]
             for arg in atom.args
             if isinstance(arg, ast.Variable)]
         variables = [

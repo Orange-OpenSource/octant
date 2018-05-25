@@ -27,55 +27,55 @@ from octant.tests import base
 class TestLexer(base.TestCase):
 
     def test_ident(self):
-        l = parser.lexer
+        lex = parser.lexer
         for s in ['aaa', 'aAa', 'aa_aa_34']:
-            l.input(s)
-            t = l.token()
+            lex.input(s)
+            t = lex.token()
             self.assertEqual('IDENT', t.type)
             self.assertEqual(s, t.value)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
     def test_var(self):
-        l = parser.lexer
+        lex = parser.lexer
         for s in ['Aaa', 'AaaBbb', 'A_34']:
-            l.input(s)
-            t = l.token()
+            lex.input(s)
+            t = lex.token()
             self.assertEqual('VAR', t.type)
             self.assertEqual(s, t.value)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
     def test_number(self):
-        l = parser.lexer
+        lex = parser.lexer
         for n in [123, 1456234789, -234, 0]:
-            l.input(str(n))
-            t = l.token()
+            lex.input(str(n))
+            t = lex.token()
             self.assertEqual('NUMBER', t.type)
             self.assertEqual(n, t.value)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
     def test_ip(self):
-        l = parser.lexer
+        lex = parser.lexer
         for s in ['192.168.122.1', '255.255.0.0']:
-            l.input(s)
-            t = l.token()
+            lex.input(s)
+            t = lex.token()
             self.assertEqual('IP', t.type)
             self.assertEqual(s, t.value)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
     def test_string(self):
-        l = parser.lexer
+        lex = parser.lexer
         for s, r in [('"192.168.122.1"', '192.168.122.1'),
                      ('"aaa"', 'aaa'),
                      ('"aa\\"bb"', 'aa"bb'),
                      ('"aa\\\\bb"', 'aa\\bb')]:
-            l.input(s)
-            t = l.token()
+            lex.input(s)
+            t = lex.token()
             self.assertEqual('STRING', t.type)
             self.assertEqual(r, t.value)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
     def test_token(self):
-        l = parser.lexer
+        lex = parser.lexer
         for s, r in [
             (':-', 'ENTAIL'), ('(', 'OPAR'), ('!', 'BANG'),
             (')', 'CPAR'), (':', 'COLON'), (',', 'COMMA'),
@@ -83,10 +83,10 @@ class TestLexer(base.TestCase):
             ('&', 'AMPERSAND'), ('|', 'BAR'), ('<', 'LT'),
             ('<=', 'LE'), ('>', 'GT'), ('>=', 'GE')
         ]:
-            l.input(s)
-            t = l.token()
+            lex.input(s)
+            t = lex.token()
             self.assertEqual(r, t.type)
-            self.assertIs(None, l.token())
+            self.assertIs(None, lex.token())
 
 
 def pp(s):

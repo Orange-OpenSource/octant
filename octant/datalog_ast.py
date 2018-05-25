@@ -18,8 +18,13 @@
 class AST(object):
     """Base ast (abstract syntax tree) type for octant Datalog"""
 
+    # pylint: disable=too-few-public-methods
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __eq__(self, other):
+        raise NotImplementedError
 
 
 class Rule(AST):
@@ -98,12 +103,16 @@ class Atom(AST):
 class Expr(AST):
     "An abstract expression with an optional"
 
-    def __init__(self, type=None):
-        self.type = type
+    def __init__(self, dtype=None):
+        self.type = dtype
 
     def variables(self):
         """Free variables (default is none)"""
+        # pylint: disable=no-self-use
         return set()
+
+    def __eq__(self, other):
+        raise NotImplementedError
 
     def rename_variables(self, renaming):
         """Variable renaming (default is nothing)"""
@@ -111,10 +120,15 @@ class Expr(AST):
 
 
 class Variable(Expr):
-    "A variable (scope rule)"
+    """A variable (scope rule)
 
-    def __init__(self, ident, type=None):
-        super(Variable, self).__init__(type=type)
+    :param ident: the name of the variable
+    :param dtype: an optional type constraint
+    """
+
+    def __init__(self, ident, dtype=None):
+        super(Variable, self).__init__(dtype=dtype)
+        # pylint: disable=invalid-name
         self.id = ident
 
     def variables(self):
@@ -132,15 +146,20 @@ class Variable(Expr):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (other.id == self.id)
+            return other.id == self.id
         return False
 
 
 class Operation(Expr):
-    "An n-ary operation"
+    """An n-ary operation
 
-    def __init__(self, oper, args, type=None):
-        super(Operation, self).__init__(type=type)
+    :param oper: the name of the operation
+    :param args: the AST of the arguments of the operation
+    :param type: an optional type constaint.
+    """
+
+    def __init__(self, oper, args, dtype=None):
+        super(Operation, self).__init__(dtype=dtype)
         self.operation = oper
         self.args = args
         self.var_types = []  # type variable for polymorphic operators.
@@ -165,9 +184,8 @@ class Operation(Expr):
 class NumConstant(Expr):
     "A numeric constant"
 
-    def __init__(self, val, type='int'):
-        super(NumConstant, self).__init__(
-            type=type)
+    def __init__(self, val, dtype='int'):
+        super(NumConstant, self).__init__(dtype=dtype)
         self.val = val
 
     def __repr__(self):
@@ -175,15 +193,19 @@ class NumConstant(Expr):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (other.val == self.val and other.type == self.type)
+            return other.val == self.val and other.type == self.type
         return False
 
 
 class StringConstant(Expr):
-    "A string constant"
+    """A string constant
 
-    def __init__(self, val, type='string'):
-        super(StringConstant, self).__init__(type=type)
+    :param val: the value of the string
+    :param typ: The type used
+    """
+
+    def __init__(self, val, dtype='string'):
+        super(StringConstant, self).__init__(dtype=dtype)
         self.val = val
 
     def __repr__(self):
@@ -191,15 +213,18 @@ class StringConstant(Expr):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (other.val == self.val and other.type == self.type)
+            return other.val == self.val and other.type == self.type
         return False
 
 
 class BoolConstant(Expr):
-    "A boolean constant"
+    """A boolean constant
+
+    :param val: the boolean value (as a bool)
+    """
 
     def __init__(self, val):
-        super(BoolConstant, self).__init__(type='bool')
+        super(BoolConstant, self).__init__(dtype='bool')
         self.val = val
 
     def __repr__(self):
@@ -212,10 +237,15 @@ class BoolConstant(Expr):
 
 
 class IpConstant(Expr):
-    "An ip address constant"
+    """An ip address constant
+
+    :param val: ip address represented as a string
+    """
+
+    # pylint: disable=too-few-public-methods
 
     def __init__(self, val):
-        super(IpConstant, self).__init__(type='ip_address')
+        super(IpConstant, self).__init__(dtype='ip_address')
         self.val = val
 
     def __repr__(self):
@@ -228,7 +258,14 @@ class IpConstant(Expr):
 
 
 class TypedTable(object):
-    """A table with a name and types of its columns"""
+    """A table with a name and types of its columns
+
+    :param name: Name of the table
+    :param params: list of type names
+    """
+
+    # pylint: disable=too-few-public-methods
+
     def __init__(self, name, params=None):
         self.name = name
         self.params = params if params is not None else []
@@ -241,6 +278,9 @@ class TypedTable(object):
 
 class Constant(AST):
     """A constant to be substituted"""
+
+    # pylint: disable=too-few-public-methods
+
     def __init__(self, name):
         self.name = name
 

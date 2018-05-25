@@ -121,7 +121,7 @@ def _project_scope(pval):
         else None)
 
 
-# Describes how to bind values extracted from the to Python table.
+#: Describes how to bind values extracted from the openstack client.
 OPENSTACK_TABLES = {
     "network": (lambda conn: conn.network.networks(), {
         "id": ("id", lambda n: n.id),
@@ -328,6 +328,7 @@ def _get_firewall_routers(ncn):
     )
 
 
+#: Describes how to bind values extracted from the neutron client.
 NEUTRON_TABLES = {
     "firewall": (
         lambda ncn: ncn.list_firewalls()['firewalls'],
@@ -406,6 +407,13 @@ NEUTRON_TABLES = {
 
 
 def register(datasource):
+    """Register tables in datasource
+
+    It registers table that can be retrieved either from the OpenStack client
+    or the Neutron client (firewall mainly)
+
+    :param datasource: The datasource object to enrich.
+    """
     openstack_conf = cfg.CONF.openstack
     if not openstack_conf.enabled:
         return

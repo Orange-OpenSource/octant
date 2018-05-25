@@ -125,6 +125,8 @@ class NumType(Z3Type):
         return val.as_long()
 
 
+# I intend to use Z3 conventions for sorts.
+# pylint: disable=invalid-name
 IpAddressSort = z3.BitVecSort(32)
 
 
@@ -214,19 +216,19 @@ COMPARISON = {
 }
 
 CONSTANTS = {
-    "none": ast.StringConstant(None, type='id'),
-    "ingress": ast.StringConstant('ingress', type='direction'),
-    "egress": ast.StringConstant('egress', type='direction'),
-    "ipv4": ast.StringConstant('ipv4', type='ip_version'),
-    "ipv6": ast.StringConstant('ipv6', type='ip_version'),
-    "active": ast.StringConstant('active', type='status'),
-    "down": ast.StringConstant('down', type='status'),
-    "build": ast.StringConstant('build', type='status'),
-    "error": ast.StringConstant('error', type='status'),
-    "other": ast.StringConstant('other', type='status'),
-    "allow": ast.StringConstant('allow', type='fw_action'),
-    "reject": ast.StringConstant('reject', type='fw_action'),
-    "deny": ast.StringConstant('deny', type='fw_action'),
+    "none": ast.StringConstant(None, dtype='id'),
+    "ingress": ast.StringConstant('ingress', dtype='direction'),
+    "egress": ast.StringConstant('egress', dtype='direction'),
+    "ipv4": ast.StringConstant('ipv4', dtype='ip_version'),
+    "ipv6": ast.StringConstant('ipv6', dtype='ip_version'),
+    "active": ast.StringConstant('active', dtype='status'),
+    "down": ast.StringConstant('down', dtype='status'),
+    "build": ast.StringConstant('build', dtype='status'),
+    "error": ast.StringConstant('error', dtype='status'),
+    "other": ast.StringConstant('other', dtype='status'),
+    "allow": ast.StringConstant('allow', dtype='fw_action'),
+    "reject": ast.StringConstant('reject', dtype='fw_action'),
+    "deny": ast.StringConstant('deny', dtype='fw_action'),
     "true": ast.BoolConstant(True),
     "false": ast.BoolConstant(False)
 }
