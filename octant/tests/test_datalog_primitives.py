@@ -108,19 +108,19 @@ class TestIpType(base.TestCase):
 
     def test_marshalling(self):
         # Pure identity - no handling of None
-        self.assertEqual('192.168.0.1', self.type.marshall('192.168.0.1'))
-        self.assertEqual('192.168.0.1', self.type.unmarshall('192.168.0.1'))
+        self.assertEqual(u'192.168.0.1', self.type.marshall(u'192.168.0.1'))
+        self.assertEqual(u'192.168.0.1', self.type.unmarshall(u'192.168.0.1'))
 
     def test_to_z3(self):
 
-        x = self.type.to_z3('10.0.0.4')
+        x = self.type.to_z3(u'10.0.0.4')
         self.assertEqual(32, x.size())
         self.assertEqual(0x0a000004, x.as_long())
 
     def test_from_z3(self):
         self.assertEqual(
-            '192.168.0.1',
-            self.type.to_os(self.type.to_z3('192.168.0.1')))
+            u'192.168.0.1',
+            self.type.to_os(self.type.to_z3(u'192.168.0.1')))
 
 
 class TestPrimitives(base.TestCase):
@@ -132,15 +132,15 @@ class TestPrimitives(base.TestCase):
         self.assertEqual(0, primitives.bits_of_mask(0x00000000))
 
     def test_prefix_of_network(self):
-        self.assertEqual('0.0.0.0', primitives.prefix_of_network(None))
+        self.assertEqual(u'0.0.0.0', primitives.prefix_of_network(None))
         self.assertEqual(
-            '192.168.0.0', primitives.prefix_of_network('192.168.0.0/24'))
+            u'192.168.0.0', primitives.prefix_of_network(u'192.168.0.0/24'))
         self.assertEqual(
-            '10.0.0.0', primitives.prefix_of_network('10.0.0.0/8'))
+            u'10.0.0.0', primitives.prefix_of_network(u'10.0.0.0/8'))
 
     def test_mask_of_network(self):
-        self.assertEqual('0.0.0.0', primitives.mask_of_network(None))
+        self.assertEqual(u'0.0.0.0', primitives.mask_of_network(None))
         self.assertEqual(
-            '255.255.255.0', primitives.mask_of_network('192.168.0.0/24'))
+            u'255.255.255.0', primitives.mask_of_network(u'192.168.0.0/24'))
         self.assertEqual(
-            '255.0.0.0', primitives.mask_of_network('10.0.0.0/8'))
+            u'255.0.0.0', primitives.mask_of_network(u'10.0.0.0/8'))
