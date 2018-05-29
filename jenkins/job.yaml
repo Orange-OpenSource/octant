@@ -1,0 +1,90 @@
+- scm:
+    name: octant_github
+    scm:
+      - git:
+          url: https://github.com/Orange-OpenSource/octant.git
+          branches:
+            - origin/master
+          timeout: 20
+
+- trigger:
+    name: octant_github
+    triggers:
+      - pollscm:
+          cron: ''
+- builder:
+    name: clean_octant
+    builders:
+      - shell: |
+          rm result-py??.* pep8.log pylint.log || true
+
+- builder:
+    name: python27
+    builders:
+      - shell: |
+          tox -e py27 || error=true
+          stestr last --subunit > result-py27.sut
+          subunit2junitxml result-py27.sut > result-py27.xml
+          sed -i -e '1 s/name=""/name="Python2.7"/' result-py27.xml
+          if [ $error ]; then
+            exit 1
+          fi
+
+- builder:
+    name: python35
+    builders:
+      - shell: |
+          tox -e py35 || error=true
+          stestr last --subunit > result-py35.sut
+          subunit2junitxml result-py35.sut > result-py35.xml
+          sed -i -e '1 s/name=""/name="Python3.5"/' result-py35.xml
+          if [ $error ]; then
+            exit 1
+          fi
+
+- builder:
+    name: pep8
+    builders:
+      - shell: |
+          tox -e pep8 -- --output-file=pep8.log || true
+
+- builder:
+    name: pylint
+    builders:
+      - shell: |
+          tox -e venv -- pylint octant --ignore tests -f parseable -d I0011 > pylint.log || true
+
+- publisher:
+    name: octant_publisher
+    publishers:
+      - warnings:
+          workspace-file-scanners:
+            - file-pattern: pep8.log
+              scanner: Pep8
+            - file-pattern: pylint.log
+              scanner: Pylint
+      - junit:
+          results: result-py27.xml
+      - junit:
+          results: result-py35.xml
+
+- job-template:
+    name: octant_{name}
+    project-type: freestyle
+    scm:
+      - octant_{name}
+    triggers:
+      - octant_{name}
+    builders:
+      - clean_octant
+      - pep8
+      - pylint
+      - python27
+      - python35
+    publishers:
+      - octant_publisher
+
+- project:
+    name: github
+    jobs:
+      - octant_{name}
