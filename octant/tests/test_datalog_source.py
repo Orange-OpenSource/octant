@@ -74,8 +74,8 @@ class TestDatasource(base.TestCase):
         self.assertIs(False, self.src.is_primitive(ast.Atom("G3", [])))
 
     def test_types(self):
-        l = self.src.get_table_types("T1", ["f3", "f2"])
-        self.assertEqual(["t3", "t2"], l)
+        ltypes = self.src.get_table_types("T1", ["f3", "f2"])
+        self.assertEqual(["t3", "t2"], ltypes)
 
     def test_retrieve(self):
         buffer = []
