@@ -12,6 +12,17 @@
     triggers:
       - pollscm:
           cron: ''
+
+- builder:
+    name: octant_success_github
+    builders:
+      - shell: "echo 'octant success'"
+
+- builder:
+    name: octant_failure_github
+    builders:
+      - shell: "echo 'octant failure'"
+
 - builder:
     name: clean_octant
     builders:
@@ -82,7 +93,21 @@
       - python27
       - python35
     publishers:
+      - postbuildscript:
+          builders:
+            - build-on:
+                 - SUCCESS
+                 - UNSTABLE
+              build-steps:
+                - octant_success_{name}
+            - build-on:
+                 - NOT_BUILT
+                 - ABORTED
+                 - FAILURE
+              build-steps:
+                - octant_failure_{name}
       - octant_publisher
+
 
 - project:
     name: github
