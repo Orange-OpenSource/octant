@@ -270,10 +270,15 @@ class TypedTable(object):
         self.name = name
         self.params = params if params is not None else []
 
-    def __str__(self):
+    def __repr__(self):
         return "[{}({})]".format(
             self.name,
             ",".join(str(x) for x in self.params))
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return other.name == self.name and other.params == self.params
+        return False
 
 
 class Constant(AST):
