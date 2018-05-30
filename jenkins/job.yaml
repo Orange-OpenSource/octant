@@ -36,7 +36,6 @@
           tox -e py27 || error=true
           stestr last --subunit > result-py27.sut
           subunit2junitxml result-py27.sut > result-py27.xml
-          sed -i -e '1 s/name=""/name="Python2.7"/' result-py27.xml
           if [ $error ]; then
             exit 1
           fi
@@ -48,10 +47,14 @@
           tox -e py35 || error=true
           stestr last --subunit > result-py35.sut
           subunit2junitxml result-py35.sut > result-py35.xml
-          sed -i -e '1 s/name=""/name="Python3.5"/' result-py35.xml
           if [ $error ]; then
             exit 1
           fi
+
+- builder:
+    name: coverage
+    builders:
+      - shell: tox -e cover
 
 - builder:
     name: pep8
@@ -75,9 +78,16 @@
             - file-pattern: pylint.log
               scanner: Pylint
       - junit:
-          results: result-py27.xml
-      - junit:
-          results: result-py35.xml
+          results: result-py*.xml
+      - cobertura:
+          report-file: cover/coverage.xml
+          targets:
+            - methods:
+                healthy: 80
+            - lines:
+                healthy: 80
+            - conditionals:
+                healthy: 70
 
 - job-template:
     name: octant_{name}
@@ -92,6 +102,7 @@
       - pylint
       - python27
       - python35
+      - coverage
     publishers:
       - postbuildscript:
           builders:
