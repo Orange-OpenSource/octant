@@ -40,13 +40,26 @@ PROG1 = "p(X,Y) :- q(X), r(Y)."
 PRIM1 = {"q": ["q1"], "r": ["r1"]}
 SRC1 = {"q": {"q1": "t1"}, "r": {"r1": "t2"}}
 
-PROG2 = "p(X) :- X >= 3."
-PRIM2 = {}
-SRC2 = {}
+PROG2 = "p(X) :- X >= 3. q(Y) :- 3 >= Y."
 
-PROG3 = "p(X) :- X = Y & Y, Y >= 3: int4."
-PRIM3 = {}
-SRC3 = {}
+PROG3 = """
+   p(X) :- X = Y & Y, Y >= 3: int4.
+   q(Z) :- 4 = Z & Z.
+   """
+
+PROG4 = "p(X) :- X:int4 >= 3."
+
+PROG5 = "p(X) :- X = Y & 2, Y >= 3: int4."
+
+PROG6 = "p(X) :- 3 = 2 & (X & 6)."
+
+PROG7 = "p(X, Y) :- Y = (X & 2: int4) :int."
+
+PROG8 = "p(X) :- X <= 3. q(Y) :- p(Y, Y)."
+
+PROG9 = "p(X:int, X: int4)."
+
+PROG10 = "p(3). p(4:int4)."
 
 
 class TestTypechecker(base.TestCase):
@@ -67,12 +80,58 @@ class TestTypechecker(base.TestCase):
 
     def test_compare(self):
         prog = parser.wrapped_parse(PROG2)
-        tables = typechecker.type_theory(prog, PRIM2, MockSource(SRC2))
+        tables = typechecker.type_theory(prog, {}, MockSource({}))
         self.assertIn("p", tables)
         self.assertEqual(ast.TypedTable("p", ["int"]), tables['p'])
+        self.assertIn("q", tables)
+        self.assertEqual(ast.TypedTable("q", ["int"]), tables['q'])
 
     def test_operation(self):
         prog = parser.wrapped_parse(PROG3)
-        tables = typechecker.type_theory(prog, PRIM3, MockSource(SRC3))
+        tables = typechecker.type_theory(prog, {}, MockSource({}))
         self.assertIn("p", tables)
         self.assertEqual(ast.TypedTable("p", ["int4"]), tables['p'])
+        self.assertIn("q", tables)
+        self.assertEqual(ast.TypedTable("q", ["int"]), tables['q'])
+
+    def test_bad_compare(self):
+        prog = parser.wrapped_parse(PROG4)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))
+
+    def test_bad_operation(self):
+        prog = parser.wrapped_parse(PROG5)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))
+
+    def test_sub_operation(self):
+        prog = parser.wrapped_parse(PROG6)
+        tables = typechecker.type_theory(prog, {}, MockSource({}))
+        self.assertIn("p", tables)
+        self.assertEqual(ast.TypedTable("p", ["int"]), tables['p'])
+
+    def test_clash_on_expr(self):
+        prog = parser.wrapped_parse(PROG7)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))
+
+    def test_arity_check(self):
+        prog = parser.wrapped_parse(PROG8)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))
+
+    def test_constraint_check(self):
+        prog = parser.wrapped_parse(PROG9)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))
+
+    def test_atom_column(self):
+        prog = parser.wrapped_parse(PROG10)
+        self.assertRaises(
+            typechecker.Z3TypeError,
+            lambda: typechecker.type_theory(prog, {}, MockSource({})))

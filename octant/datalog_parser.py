@@ -245,6 +245,12 @@ def p_eexpr_par(t):
     t[0] = t[2]
 
 
+def p_eexpr_par_type(t):
+    'eexpr : OPAR eexpr CPAR COLON IDENT'
+    t[2].type = t[5]
+    t[0] = t[2]
+
+
 def p_eexpr_and(t):
     'eexpr : eexpr AMPERSAND eexpr'
     t[0] = ast.Operation('&', [t[1], t[3]])
