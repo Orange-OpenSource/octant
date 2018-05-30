@@ -162,7 +162,7 @@ class Operation(Expr):
         super(Operation, self).__init__(dtype=dtype)
         self.operation = oper
         self.args = args
-        self.var_types = []  # type variable for polymorphic operators.
+        self.var_types = None  # type variable for polymorphic operators.
 
     def variables(self):
         return set(v for x in self.args for v in x.variables())

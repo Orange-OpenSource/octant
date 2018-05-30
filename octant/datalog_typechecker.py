@@ -103,6 +103,8 @@ def type_theory(rules, primitive_tables, datasource):
 
         work_done = False
         schema = primitives.OPERATIONS[expr.operation]
+        if expr.var_types is None:
+            expr.var_types = [None] * schema.ty_vars
         typ_scheme_res = get_type(schema.result)
         if expr.type is None:
             if typ_scheme_res is not None:

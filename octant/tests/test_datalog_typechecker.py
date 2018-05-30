@@ -44,6 +44,10 @@ PROG2 = "p(X) :- X >= 3."
 PRIM2 = {}
 SRC2 = {}
 
+PROG3 = "p(X) :- X = Y & Y, Y >= 3: int4."
+PRIM3 = {}
+SRC3 = {}
+
 
 class TestTypechecker(base.TestCase):
     """Test the typechecker
@@ -66,3 +70,9 @@ class TestTypechecker(base.TestCase):
         tables = typechecker.type_theory(prog, PRIM2, MockSource(SRC2))
         self.assertIn("p", tables)
         self.assertEqual(ast.TypedTable("p", ["int"]), tables['p'])
+
+    def test_operation(self):
+        prog = parser.wrapped_parse(PROG3)
+        tables = typechecker.type_theory(prog, PRIM3, MockSource(SRC3))
+        self.assertIn("p", tables)
+        self.assertEqual(ast.TypedTable("p", ["int4"]), tables['p'])
