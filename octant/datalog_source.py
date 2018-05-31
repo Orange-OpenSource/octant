@@ -153,7 +153,11 @@ class Datasource(object):
 
         def get_field(field):
             """Get a field compilation functions for cloud access"""
-            type_name, access = accessor.fields[field]
+            try:
+                type_name, access = accessor.fields[field]
+            except KeyError:
+                raise typechecker.Z3TypeError(
+                    'Unknown field {} in {}'.format(field, table_name))
             type_field = self.types[type_name]
             return (type_field.to_z3, access, type_field.marshall)
 

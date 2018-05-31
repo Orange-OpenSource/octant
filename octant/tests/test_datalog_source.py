@@ -21,9 +21,12 @@ test_datalog_source
 Tests for `datalog_source` module.
 """
 
+import mock
+
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 from octant import datalog_source as source
+from octant import datalog_typechecker as typechecker
 from octant.tests import base
 
 
@@ -41,6 +44,13 @@ class T(primitives.Z3Type):
 
     def unmarshall(self, val):
         return val
+
+
+BACKUP_FILE = (
+    "T1,f3,f2\r\n"
+    "T1,T1-S1-R1x3,T1-S1-R1x2\r\n"
+    "T1,T1-S1-R2x3,T1-S1-R2x2\r\n"
+    "T1,T1-S1-R3x3,T1-S1-R3x2\r\n")
 
 
 class TestDatasource(base.TestCase):
@@ -87,3 +97,66 @@ class TestDatasource(base.TestCase):
             "z3T1-S0-R1x3 z3T1-S0-R1x2", "z3T1-S0-R2x3 z3T1-S0-R2x2",
             "z3T1-S0-R3x3 z3T1-S0-R3x2"]
         self.assertEqual(expected, buffer)
+
+    @mock.patch("oslo_config.cfg.CONF")
+    @mock.patch("octant.datalog_source.open")
+    def test_save(self, mock_open, mock_conf):
+        mock_conf.save = "file"
+        mock_conf.restore = None
+        mock.mock_open(mock=mock_open)
+        with self.src:
+            self.src.retrieve_table("T1", ["f3", "f2"], lambda x: ())
+        mock_open.assert_called_once_with('file', mode='w')
+        mock_open.write.has_calls([
+            mock.call('T1,f3,f2\r\n'),
+            mock.call('T1,T1-S0-R1x3,T1-S0-R1x2\r\n'),
+            mock.call('T1,T1-S0-R2x3,T1-S0-R2x2\r\n'),
+            mock.call('T1,T1-S0-R3x3,T1-S0-R3x2\r\n')
+        ])
+
+    @mock.patch("oslo_config.cfg.CONF")
+    @mock.patch("octant.datalog_source.open")
+    def test_restore(self, mock_open, mock_conf):
+        mock_conf.save = None
+        mock_conf.restore = "file"
+        mock.mock_open(mock=mock_open, read_data=BACKUP_FILE)
+        # Patch the mock_open file to support iteration.
+        mock_open.return_value.__iter__ = lambda x: iter(x.readline, '')
+        buffer = []
+
+        def mk_relation(l):
+            buffer.append(" ".join(l))
+        with self.src:
+            self.src.retrieve_table("T1", ["f3", "f2"], mk_relation)
+        # Note that we have renamed S0 in S1 in the backup file.
+        expected = [
+            "z3T1-S1-R1x3 z3T1-S1-R1x2", "z3T1-S1-R2x3 z3T1-S1-R2x2",
+            "z3T1-S1-R3x3 z3T1-S1-R3x2"]
+        self.assertEqual(expected, buffer)
+
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_use_cache(self, mock_conf):
+        mock_conf.restore = None
+        self.assertIs(False, self.src.use_cache())
+        mock_conf.restore = "file"
+        self.assertIs(True, self.src.use_cache())
+
+    def test_retrieve_failures(self):
+        def fail1():
+            self.src.retrieve_table("T4", ["f3", "f2"], lambda x: ())
+
+        def fail2():
+            self.src.retrieve_table("T1", ["f5", "f2"], lambda x: ())
+
+        self.assertRaises(typechecker.Z3TypeError, fail1)
+        self.assertRaises(typechecker.Z3TypeError, fail2)
+
+    def test_types_failures(self):
+        def fail1():
+            self.src.get_table_types("T4", ["f3", "f2"])
+
+        def fail2():
+            self.src.get_table_types("T1", ["f5", "f2"])
+
+        self.assertRaises(typechecker.Z3TypeError, fail1)
+        self.assertRaises(typechecker.Z3TypeError, fail2)
