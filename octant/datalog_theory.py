@@ -206,14 +206,14 @@ def print_csv(variables, answers):
     print()
 
 
-def print_result(query, variables, answers, time_used):
+def print_result(query, variables, answers, time_used, show_pretty):
     """Pretty-print the result of a query"""
     print("*" * 80)
     print(query)
     if time_used is not None:
         print("Query time: {}".format(time_used))
     print("-" * 80)
-    if cfg.CONF.pretty:
+    if show_pretty:
         if isinstance(answers, list):
             pretty = prettytable.PrettyTable(variables)
             for row in answers:
@@ -262,7 +262,8 @@ def main():
             else:
                 print_result(
                     query, variables, answers,
-                    time.clock() - start if time_required else None)
+                    time.clock() - start if time_required else None,
+                    cfg.CONF.pretty)
         if not csv_out:
             print("*" * 80)
     except compiler.Z3NotWellFormed as exc:
