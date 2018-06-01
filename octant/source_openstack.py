@@ -244,7 +244,8 @@ OPENSTACK_TABLES = {
          "security_group_id": ("id", lambda p: p.security_group_id)}
     ),
     "server": (
-        lambda conn: conn.compute.servers(all_tenants=cfg.CONF.all_projects),
+        lambda conn: conn.compute.servers(
+            all_tenants=cfg.CONF.openstack.all_projects),
         {"id": ("id", lambda s: s.id),
          "project_id": ("id", lambda s: s.project_id),
          "name": ("string", lambda s: s.name),
@@ -260,7 +261,7 @@ OPENSTACK_TABLES = {
         "disk": ("int", lambda f: f.disk),
         "public": ("bool", lambda f: f.is_public)
     }),
-    "image": (lambda conn: conn.image.images(), {
+    "image": (lambda conn: conn.compute.images(), {
         "id": ("id", lambda f: f.id),
         "name": ("string", lambda f: f.name),
     }),
@@ -436,7 +437,8 @@ def register(datasource):
             urllib3.disable_warnings()
         auth = identity.Password(**auth_args)
         sess = session.Session(auth=auth, verify=openstack_conf.verify)
-        openstack_cnx = connection.Connection(session=sess)
+        openstack_cnx = connection.Connection(
+            session=sess, identity_api_version='3')
         neutron_cnx = neutronclient.Client(session=sess)
     datasource.register(neutron_cnx, NEUTRON_TABLES)
     datasource.register(openstack_cnx, OPENSTACK_TABLES)

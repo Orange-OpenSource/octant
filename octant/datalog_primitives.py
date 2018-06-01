@@ -137,7 +137,8 @@ class IpAddressType(Z3Type):
         super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
 
     def to_z3(self, val):
-        return z3.BitVecVal(int(ipaddress.ip_address(val)), self.type_instance)
+        return z3.BitVecVal(int(ipaddress.ip_address(six.text_type(val))),
+                            self.type_instance)
 
     def marshall(self, val):
         return val
@@ -184,7 +185,7 @@ def prefix_of_network(cidr):
     return (
         u'0.0.0.0' if cidr is None
         else ipaddress.ip_network(
-            cidr, strict=False).network_address.compressed)
+            six.text_type(cidr), strict=False).network_address.compressed)
 
 
 def mask_of_network(cidr):
@@ -194,7 +195,8 @@ def mask_of_network(cidr):
     """
     return (
         u'0.0.0.0' if cidr is None
-        else ipaddress.ip_network(cidr, strict=False).netmask.compressed)
+        else ipaddress.ip_network(six.text_type(cidr),
+                                  strict=False).netmask.compressed)
 
 
 Operation = collections.namedtuple(
