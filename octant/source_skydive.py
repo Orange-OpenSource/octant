@@ -47,6 +47,14 @@ def _child(edge):
     return edge.child
 
 
+def elements_of_rule(elt, cnx):
+    return [
+        (rule.id, e, i)
+        for rule in _filter_node('ofrule')(cnx)
+        for i, e in enumerate(rule.metadata[elt].split(',') + ['end'])
+    ]
+
+
 #: Describes how to bind values extracted from the python skydive client.
 TABLES = {
     "sk_host": (
@@ -86,6 +94,22 @@ TABLES = {
             "table": ("int", _metadata("table")),
             "filters": ("string", _metadata("filters")),
             "actions": ("string", _metadata("actions")),
+        }
+    ),
+    "sk_filter": (
+        lambda cnx: elements_of_rule("filters", cnx),
+        {
+            "id": ("id", lambda t: t[0]),
+            "element": ("string", lambda t: t[1]),
+            "position": ("int", lambda t: t[2])
+        }
+    ),
+    "sk_action": (
+        lambda cnx: elements_of_rule("actions", cnx),
+        {
+            "id": ("id", lambda t: t[0]),
+            "element": ("string", lambda t: t[1]),
+            "position": ("int", lambda t: t[2])
         }
     ),
     "sk_owns": (
