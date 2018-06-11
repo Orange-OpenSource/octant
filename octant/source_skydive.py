@@ -66,7 +66,7 @@ TABLES = {
         }
     ),
     "sk_ovsswitch": (
-        _filter_node("ovsswitch"),
+        _filter_node("openvswitch"),
         {
             "id": ("id", _id),
             "name": ("string", _metadata("Name")),
@@ -91,15 +91,13 @@ TABLES = {
         {
             "id": ("id", _id),
             "priority": ("int", _metadata("priority")),
-            "table": ("int", _metadata("table")),
-            "filters": ("string", _metadata("filters")),
-            "actions": ("string", _metadata("actions")),
+            "table": ("int", _metadata("table"))
         }
     ),
     "sk_filter": (
         lambda cnx: elements_of_rule("filters", cnx),
         {
-            "id": ("id", lambda t: t[0]),
+            "rule_id": ("id", lambda t: t[0]),
             "element": ("string", lambda t: t[1]),
             "position": ("int", lambda t: t[2])
         }
@@ -107,7 +105,7 @@ TABLES = {
     "sk_action": (
         lambda cnx: elements_of_rule("actions", cnx),
         {
-            "id": ("id", lambda t: t[0]),
+            "rule_id": ("id", lambda t: t[0]),
             "element": ("string", lambda t: t[1]),
             "position": ("int", lambda t: t[2])
         }
