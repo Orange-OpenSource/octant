@@ -15,6 +15,8 @@ policies on their deployments (double attachment, reachability, etc.)
 Features
 --------
 
+* Simple typed datalog that uses Z3 fixed-point solver.
 * Access to the main Neutron, Nova  and Keystonetables (networks, ports,
   security groups, routers, servers, projects, users)
-* Simple typed datalog that uses Z3 fixed-point solver.
+* Optional access to Skydive (https://github.com/skydive-project/skydive)
+  data representing the low-level configuration of the cloud infrastructure.

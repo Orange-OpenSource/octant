@@ -80,7 +80,7 @@ A Datalog program is a set of rules and each rule is a Horn clause:
 
 Such a Horn clause contributes to the definition of the predicate ``p`` by adding
 new facts. A litteral is true if it either directly stated as a fact or if it is
-an instantiation of the head of a rule such for a substitiont of the variables 
+an instantiation of the head of a rule such for a substitiont of the variables
 that make true all the litterals appearing in the body.
 
 More formally, let ``X1``...``Xm`` be the variables appearing in the rule. Let
@@ -89,7 +89,7 @@ We denote ``E[X1 <-V1 ... Xm <-Vm]`` either ``E`` if ``E`` is not a variable
 or ``Vk`` if ``E`` is variable ``Xk``.
 
 ``p(T1[X1 <-V1 ... Xm <-Vm], ... Tn[X1 <-V1 ... Xm <-Vm])``
-is true if for every predicate of the body 
+is true if for every predicate of the body
 ``qi(Ti1[X1 <-V1 ... Xm <-Vm], Tin[X1 <-V1 ... Xm <-Vm])``
 is true.
 
@@ -588,7 +588,7 @@ name        string   group name
 group_id    id       id of group
 role_id     id       id or role
 project_id  id       id of project scope
-user_id     id       id of user 
+user_id     id       id of user
 ==========  =======  =======================
 
 -------------------------
@@ -635,6 +635,36 @@ FieldName         Type     Description
 ================  =======  =========================================
 id                id       An internal id for the node
 name              string   The name of the host
+================  =======  =========================================
+
+sk_rule
+-------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+id                id       Openflow rule identifier
+priority          int      Priority of the rule
+table             int      Table hosting the rule on the switch
+================  =======  =========================================
+
+sk_action
+---------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+rule_id           id       Id of the rule containing the action
+element           string   Action content
+position          int      Position in the rule
+================  =======  =========================================
+
+sk_filter
+---------
+================  =======  =========================================
+FieldName         Type     Description
+================  =======  =========================================
+rule_id           id       Id of the rule containing the action
+element           string   Filter content
+position          int      Position in the rule
 ================  =======  =========================================
 
 Edges
