@@ -18,10 +18,12 @@ test_source_openstack
 
 Tests Openstack datasource
 """
+import mock
 import six
 import z3
 
 from octant import datalog_primitives as primitives
+from octant import datalog_source as datasource
 from octant import source_skydive as source
 from octant.tests import base
 
@@ -237,3 +239,19 @@ class TestSourceSkydive(base.TestCase):
 
     def test_l2(self):
         self.verify('sk_l2')
+
+    @mock.patch("skydive.rest.client.RESTClient")
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_register(self, mock_conf, mock_client):
+        mock_conf.skydive.enabled = False
+        mock_conf.restore = None
+        src = datasource.Datasource(primitives.TYPES)
+        source.register(src)
+        mock_client.assert_not_called()
+        mock_conf.skydive.enabled = True
+        mock_conf.restore = "file_path"
+        source.register(src)
+        mock_client.assert_not_called()
+        mock_conf.restore = None
+        source.register(src)
+        mock_client.assert_called_once()

@@ -23,6 +23,7 @@ import six
 import z3
 
 from octant import datalog_primitives as primitives
+from octant import datalog_source as datasource
 from octant import source_openstack as source
 from octant.tests import base
 
@@ -497,3 +498,55 @@ class TestSourceOpenstack(base.TestCase):
 
     def test_role_assignment(self):
         self.verify("role_assignment")
+
+    @mock.patch("urllib3.disable_warnings")
+    @mock.patch("getpass.getpass")
+    @mock.patch("keystoneauth1.identity.Password")
+    @mock.patch("keystoneauth1.session.Session")
+    @mock.patch("neutronclient.v2_0.client.Client")
+    @mock.patch("openstack.connection.Connection")
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_register(self, mock_conf, mock_client_os, mock_client_neutron,
+                      mock_session, mock_identity, mock_getpass, mock_disable):
+        mock_list = [
+            mock_client_os, mock_client_neutron, mock_session, mock_identity,
+            mock_getpass, mock_disable]
+        mock_conf.openstack.enabled = False
+        mock_conf.openstack.password = ""
+        mock_conf.openstack.verify = False
+        mock_conf.restore = None
+        src = datasource.Datasource(primitives.TYPES)
+        source.register(src)
+        for mck in mock_list:
+            mck.assert_not_called()
+        mock_conf.openstack.enabled = True
+        mock_conf.restore = "file_path"
+        source.register(src)
+        for mck in mock_list:
+            mck.assert_not_called()
+        mock_conf.restore = None
+        source.register(src)
+        for mck in mock_list:
+            mck.assert_called_once()
+
+    def test_port_min(self):
+        self.assertEqual(1, source.port_min(None))
+        self.assertEqual(2, source.port_min(2))
+        self.assertEqual(3, source.port_min('3'))
+        self.assertEqual(4, source.port_min('4:7'))
+
+    def test_port_max(self):
+        self.assertEqual(65535, source.port_max(None))
+        self.assertEqual(2, source.port_max(2))
+        self.assertEqual(3, source.port_max('3'))
+        self.assertEqual(4, source.port_max('1:4'))
+
+    def test_normalize_status(self):
+        self.assertEqual('active', source.normalize_status('ACTIVE'))
+        self.assertEqual('down', source.normalize_status('Down'))
+        self.assertEqual('other', source.normalize_status('foobar'))
+
+    def test_fw_action(self):
+        self.assertEqual('allow', source.fw_action('ALLOW'))
+        self.assertEqual('deny', source.fw_action('deny'))
+        self.assertEqual('other', source.fw_action('foobar'))
