@@ -275,3 +275,7 @@ def main():
     except parser.Z3ParseError:
         print("Parser error in query.")
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

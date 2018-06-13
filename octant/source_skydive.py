@@ -48,6 +48,12 @@ def _child(edge):
 
 
 def elements_of_rule(elt, cnx):
+    """Split elements of actions or filters of an Openflow rule
+
+    :param elt: should be either 'actions' or 'filters'
+    :param cnx: an open connection to Skydive
+    :return: a list of string, each is an atomic action or filter.
+    """
     return [
         (rule.id, e, i)
         for rule in _filter_node('ofrule')(cnx)
