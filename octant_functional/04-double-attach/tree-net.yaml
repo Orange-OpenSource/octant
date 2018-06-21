@@ -1,0 +1,45 @@
+#    Copyright 2018 Orange
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+heat_template_version: queens
+description: A net and its subnet
+parameters:
+  index:
+    type: string
+    default: "1"
+  core:
+    type: string
+    default: "net"
+  ip2:
+    type: string
+
+resources:
+  net:
+    type: OS::Neutron::Net
+    properties:
+      name: { list_join: ["-" , [get_param: core, get_param: index ]] }
+  subnet:
+    type: OS::Neutron::Subnet
+    depends_on: net
+    properties:
+      network_id: { get_resource: net }
+      name: { list_join: ["-", ["sub", get_param: core, get_param: index ]] }
+      cidr: { list_join: [".", ["192", get_param: ip2, {get_param: index}, "0/24"]] }
+      enable_dhcp: false
+
+outputs:
+  subnet:
+    value: {get_resource: subnet}
+  network:
+    value: {get_resource: net}

@@ -1,0 +1,2 @@
+connect("st1-vm1-bmqldochvmno", X, 1000, 80, "tcp")
+

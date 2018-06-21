@@ -1,0 +1,186 @@
+#    Copyright 2018 Orange
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+# To use this template, you may need to adjust quotas for
+# instances, networks, subnets, ports and routers.
+# For each kind of resource 'rsc'
+# use 'openstack quota set --{rsc}s {value} {project}'
+# openstack quota set --networks 300 --subnets 300 --routers 300 --ports 600 --instances 20 --cores 20 demo
+# with large values of size you may also experience heat timeouts and expiration
+# of the keystone token.
+# (Parameters 'stack_action_timeout' in section DEFAULT of heat.conf and
+# 'expiration' of section default of keystone.conf)
+
+heat_template_version: queens
+
+description: Network trees for double attachment
+
+parameters:
+  size:
+    type: number
+    default: 13
+    description: "Number of routers in a tree (#networks = 3 * #routers + 1)"
+    constraints:
+      - allowed_values:
+        - 1
+        - 4
+        - 13
+        - 40
+
+  good_vms:
+    type: number
+    description: number of good VMs created on each isolated net.
+    default: 3
+
+  bad_vms:
+    type: number
+    description: number of good VMs created on each isolated net.
+    default: 6
+
+  image:
+    type: string
+    description: "Image used to create VMs"
+    default: cirros-0.3.5-x86_64-disk
+
+  flavor:
+    type: string
+    description: "Flavor of VMs created"
+    default: cirros256
+
+  delay:
+    type: number
+    description: "Time between batch of creates"
+    default: 16
+
+resources:
+
+  size2:
+    type: OS::Heat::Value
+    properties:
+      type: number
+      value: {yaql: { expression: "$.data * 3 + 1", data: { get_param: size }}}
+
+  chain1:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_attr: [size2, value] }
+      resource_def:
+        type: tree-net.yaml
+        properties:
+          index: "%index%"
+          core: "net1"
+          ip2: "169"
+    update_policy:
+      batch_create:
+        max_batch_size: 10
+        pause_time: {get_param: delay}
+
+  link1:
+    type: OS::Heat::ResourceGroup
+    depends_on: chain1
+    properties:
+      count: { get_param: size }
+      resource_def:
+        type: tree-link.yaml
+        properties:
+          index: "%index%"
+          ip2: "169"
+          core: "net1"
+          subnets: {get_attr: [chain1, subnet]}
+          networks: {get_attr: [chain1, network]}
+    update_policy:
+      batch_create:
+        max_batch_size: 3
+        pause_time: {get_param: delay}
+
+  chain2:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_attr: [size2, value] }
+      resource_def:
+        type: tree-net.yaml
+        properties:
+          index: "%index%"
+          core: "net2"
+          ip2: "170"
+    update_policy:
+      batch_create:
+        max_batch_size: 10
+        pause_time: {get_param: delay}
+
+  link2:
+    type: OS::Heat::ResourceGroup
+    depends_on: chain2
+    properties:
+      count: { get_param: size }
+      resource_def:
+        type: tree-link.yaml
+        properties:
+          index: "%index%"
+          ip2: "170"
+          core: "net2"
+          subnets: {get_attr: [chain2, subnet]}
+          networks: {get_attr: [chain2, network]}
+    update_policy:
+      batch_create:
+        max_batch_size: 3
+        pause_time: {get_param: delay}
+
+  good1:
+    type: OS::Heat::ResourceGroup
+    depends_on: link1
+    properties:
+      count: { get_param: good_vms }
+      resource_def:
+        type: tree-vm.yaml
+        properties:
+          index: "%index%"
+          core: "ok1"
+          networks1: {get_attr: [chain1, network]}
+          networks2: {get_attr: [chain1, network]}
+          size: { get_attr: [size2, value] }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+
+  good2:
+    type: OS::Heat::ResourceGroup
+    depends_on: link2
+    properties:
+      count:  { get_param: good_vms }
+      resource_def:
+        type: tree-vm.yaml
+        properties:
+          index: "%index%"
+          core: "ok2"
+          networks1: {get_attr: [chain2, network]}
+          networks2: {get_attr: [chain2, network]}
+          size: { get_attr: [size2, value] }
+          flavor: { get_param: flavor }
+          image: { get_param: image }
+
+  bad:
+    type: OS::Heat::ResourceGroup
+    depends_on: [link1, link2]
+    properties:
+      count:  { get_param: bad_vms }
+      resource_def:
+        type: tree-vm.yaml
+        properties:
+          index: "%index%"
+          core: "bad"
+          networks1: {get_attr: [chain1, network]}
+          networks2: {get_attr: [chain2, network]}
+          size: { get_attr: [size2, value] }
+          flavor: { get_param: flavor }
+          image: { get_param: image }

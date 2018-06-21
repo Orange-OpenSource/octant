@@ -1,0 +1,87 @@
+#    Copyright 2018 Orange
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+heat_template_version: queens
+description: A net and its subnet
+parameters:
+  index:
+    type: number
+  core:
+    type: string
+    default: "net"
+  ip2:
+    type: string
+  subnets:
+    type: comma_delimited_list
+  networks:
+    type: comma_delimited_list
+
+resources:
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { list_join: ["-", ["r", get_param: core,  yaql: {expression: "str($.data)", data:  { get_param: index }}]] }
+
+  uplink:
+    type: OS::Neutron::RouterInterface
+    depends_on: router
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_param: [subnets, get_param: index] }
+
+  index1:
+    type: OS::Heat::Value
+    properties:
+      type: number
+      value: { yaql: {expression: "$.data * 3 + 1", data:  {get_param: index}}}
+
+  port1:
+    type: OS::Neutron::Port
+    depends_on: router
+    properties:
+      network: { get_param: [networks, get_attr: [index1, value]]}
+
+  link1:
+    type: OS::Neutron::RouterInterface
+    depends_on: port1
+    properties:
+      router_id: { get_resource: router }
+      port_id: { get_resource: port1 }
+
+  port2:
+    type: OS::Neutron::Port
+    depends_on: router
+    properties:
+      network: { get_param: [networks, yaql: {expression: "$.data.v * 3 + 2", data: { v: {get_param: index}}}]}
+
+  link2:
+    type: OS::Neutron::RouterInterface
+    depends_on: port2
+    properties:
+      router_id: { get_resource: router }
+      port_id: { get_resource: port2 }
+
+  port3:
+    type: OS::Neutron::Port
+    depends_on: router
+    properties:
+      network: { get_param: [networks, yaql: {expression: "$.data.v * 3 + 3", data: { v: {get_param: index}}}]}
+
+  link3:
+    type: OS::Neutron::RouterInterface
+    depends_on: port3
+    properties:
+      router_id: { get_resource: router }
+      port_id: { get_resource: port3 }
