@@ -35,8 +35,8 @@ def type_theory(rules, primitive_tables, datasource):
         dict_tables = {}
         # Initialize the types of primitive tables in use.
         for (table, fields) in primitive_tables.items():
-            args = datasource.get_table_types(table, fields)
-            dict_tables[table] = ast.TypedTable(table, args)
+            args_types = datasource.get_table_types(table, fields)
+            dict_tables[table] = args_types
 
         def subst_var(arg):
             """Makes var instances unique"""
@@ -66,21 +66,21 @@ def type_theory(rules, primitive_tables, datasource):
 
             Sustitute table name with a unique table description and
             make var instances unique in arguments.
+
+            Comparison are a particular case, due to polymorphism.
             """
             if atom.table in primitives.COMPARISON:
-                atom.table = ast.TypedTable(atom.table, [None, None])
+                atom.types = [None, None]
             elif atom.table in dict_tables:
-                atom.table = dict_tables[atom.table]
-                if len(atom.table.params) != len(atom.args):
+                atom.types = dict_tables[atom.table]
+                if len(atom.types) != len(atom.args):
                     raise Z3TypeError(
                         "Arity problem for symbol {} in {}".format(
-                            atom.table.name,
-                            atom))
+                            atom.table, atom))
             else:
                 params = [None for _ in atom.args]
-                typed_table = ast.TypedTable(atom.table, params)
-                dict_tables[atom.table] = typed_table
-                atom.table = typed_table
+                dict_tables[atom.table] = params
+                atom.types = params
             atom.args = [
                 subst_var(arg) for arg in atom.args]
 
@@ -145,7 +145,7 @@ def type_theory(rules, primitive_tables, datasource):
 
     def type_atom(atom):
         """Types an atom"""
-        params = atom.table.params
+        params = atom.types
         work_done = False
         for i in moves.range(len(params)):
             param_type = params[i]
@@ -167,18 +167,18 @@ def type_theory(rules, primitive_tables, datasource):
                                 param_type,
                                 atom
                             ))
-        if atom.table.name in primitives.COMPARISON:
-            param0 = atom.table.params[0]
-            param1 = atom.table.params[1]
+        if atom.table in primitives.COMPARISON:
+            param0 = atom.types[0]
+            param1 = atom.types[1]
             if param0 is None:
                 if param1 is not None:
-                    atom.table.params[0] = atom.table.params[1]
-                    atom.args[0].type = atom.table.params[1]
+                    atom.types[0] = atom.types[1]
+                    atom.args[0].type = atom.types[1]
                     work_done = True
             else:
                 if param1 is None:
-                    atom.table.params[1] = atom.table.params[0]
-                    atom.args[1].type = atom.table.params[0]
+                    atom.types[1] = atom.types[0]
+                    atom.args[1].type = atom.types[0]
                     work_done = True
                 else:
                     if param0 != param1:

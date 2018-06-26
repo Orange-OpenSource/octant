@@ -93,17 +93,17 @@ class Z3Theory(object):
 
     def build_relations(self):
         """Builds the compiled relations"""
-        for name, typed_table in six.iteritems(self.compiler.typed_tables):
+        for name, arg_types in six.iteritems(self.compiler.typed_tables):
             try:
                 param_types = [
                     self.datasource.types[typename].type()
-                    for typename in typed_table.params]
+                    for typename in arg_types]
             except KeyError as exc:
                 raise typechecker.Z3TypeError(
                     "Unknown type {} found for {}: {}".format(
                         exc.args[0],
                         name,
-                        typed_table.params
+                        arg_types
                     ))
             param_types.append(z3.BoolSort())
             relation = z3.Function(name, *param_types)
@@ -149,10 +149,10 @@ class Z3Theory(object):
     def compile_atom(self, variables, atom):
         """Compiles an atom to Z3"""
         args = [self.compile_expr(variables, expr) for expr in atom.args]
-        if atom.table.name in primitives.COMPARISON:
-            compiled_atom = primitives.COMPARISON[atom.table.name](args)
+        if atom.table in primitives.COMPARISON:
+            compiled_atom = primitives.COMPARISON[atom.table](args)
         else:
-            relation = self.relations[atom.table.name]
+            relation = self.relations[atom.table]
             compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
@@ -170,12 +170,12 @@ class Z3Theory(object):
         if atom.table not in self.compiler.typed_tables:
             raise compiler.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))
-        atom.table = self.compiler.typed_tables[atom.table]
-        if len(atom.table.params) != len(atom.args):
+        atom.types = self.compiler.typed_tables[atom.table]
+        if len(atom.types) != len(atom.args):
             raise compiler.Z3NotWellFormed(
                 "Arity of predicate inconsistency in {}".format(atom))
-        for i in moves.xrange(len(atom.table.params)):
-            atom.args[i].type = atom.table.params[i]
+        for i in moves.xrange(len(atom.types)):
+            atom.args[i].type = atom.types[i]
         query = self.compile_atom({}, atom)
         self.context.query(query)
         types = [

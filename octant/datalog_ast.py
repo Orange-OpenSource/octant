@@ -66,13 +66,22 @@ class Rule(AST):
 
 
 class Atom(AST):
-    """Represents an atom either in the head or body"""
+    """Represents an atom either in the head or body
+
+    * table: a string, the name of the predicate
+    * args: ast.Expr list, the arguments of the atom
+    * negated: boolean, whether the predicate is negated or not
+    * labels: string list, arguments are initially labelled for primitive
+        tables
+    * types: string list, the types of the arguments (used by typechecker only)
+    """
 
     def __init__(self, table, args, negated=False, labels=None):
         self.table = table
         self.args = args
         self.negated = negated
         self.labels = labels
+        self.types = None
 
     def variables(self):
         """Variables of the atom"""
@@ -254,30 +263,6 @@ class IpConstant(Expr):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return other.val == self.val
-        return False
-
-
-class TypedTable(object):
-    """A table with a name and types of its columns
-
-    :param name: Name of the table
-    :param params: list of type names
-    """
-
-    # pylint: disable=too-few-public-methods
-
-    def __init__(self, name, params=None):
-        self.name = name
-        self.params = params if params is not None else []
-
-    def __repr__(self):
-        return "[{}({})]".format(
-            self.name,
-            ",".join(str(x) for x in self.params))
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return other.name == self.name and other.params == self.params
         return False
 
 

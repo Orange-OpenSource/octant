@@ -20,7 +20,7 @@ test_datalog_typechecker
 
 Tests for `datalog_typecheker` module.
 """
-from octant import datalog_ast as ast
+
 from octant import datalog_parser as parser
 from octant import datalog_typechecker as typechecker
 from octant.tests import base
@@ -72,27 +72,27 @@ class TestTypechecker(base.TestCase):
         prog = parser.wrapped_parse(PROG1)
         tables = typechecker.type_theory(prog, PRIM1, MockSource(SRC1))
         self.assertIn("p", tables)
-        self.assertEqual(ast.TypedTable("p", ["t1", "t2"]), tables['p'])
+        self.assertEqual(["t1", "t2"], tables['p'])
         self.assertIn("q", tables)
-        self.assertEqual(ast.TypedTable("q", ["t1"]), tables['q'])
+        self.assertEqual(["t1"], tables['q'])
         self.assertIn("r", tables)
-        self.assertEqual(ast.TypedTable("r", ["t2"]), tables['r'])
+        self.assertEqual(["t2"], tables['r'])
 
     def test_compare(self):
         prog = parser.wrapped_parse(PROG2)
         tables = typechecker.type_theory(prog, {}, MockSource({}))
         self.assertIn("p", tables)
-        self.assertEqual(ast.TypedTable("p", ["int"]), tables['p'])
+        self.assertEqual(["int"], tables['p'])
         self.assertIn("q", tables)
-        self.assertEqual(ast.TypedTable("q", ["int"]), tables['q'])
+        self.assertEqual(["int"], tables['q'])
 
     def test_operation(self):
         prog = parser.wrapped_parse(PROG3)
         tables = typechecker.type_theory(prog, {}, MockSource({}))
         self.assertIn("p", tables)
-        self.assertEqual(ast.TypedTable("p", ["int4"]), tables['p'])
+        self.assertEqual(["int4"], tables['p'])
         self.assertIn("q", tables)
-        self.assertEqual(ast.TypedTable("q", ["int"]), tables['q'])
+        self.assertEqual(["int"], tables['q'])
 
     def test_bad_compare(self):
         prog = parser.wrapped_parse(PROG4)
@@ -110,7 +110,7 @@ class TestTypechecker(base.TestCase):
         prog = parser.wrapped_parse(PROG6)
         tables = typechecker.type_theory(prog, {}, MockSource({}))
         self.assertIn("p", tables)
-        self.assertEqual(ast.TypedTable("p", ["int"]), tables['p'])
+        self.assertEqual(["int"], tables['p'])
 
     def test_clash_on_expr(self):
         prog = parser.wrapped_parse(PROG7)
