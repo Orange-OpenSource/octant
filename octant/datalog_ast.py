@@ -58,7 +58,7 @@ class Rule(AST):
         return set(atom.table for atom in self.body)
 
     def __repr__(self):
-        return "{} :- {}".format(self.head, self.body)
+        return "{}: {} :- {}".format(self.id, self.head, self.body)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -147,7 +147,7 @@ class Variable(Expr):
         self.rule_id = None
 
     def variables(self):
-        return set([self.id])
+        return set([self.full_id()])
 
     def __repr__(self):
         expr_repr = (

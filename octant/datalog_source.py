@@ -131,7 +131,7 @@ class Datasource(object):
         """check if it uses the cache"""
         return cfg.CONF.restore is not None
 
-    def retrieve_table(self, table_name, fields, mk_relation):
+    def retrieve_table(self, table_name, fields, mk_relation, extract=None):
         """Get the facts on the cloud or in the csv cache.
 
         :param table_name: the name of the table to retrieve
@@ -139,6 +139,10 @@ class Datasource(object):
         :param mk_relation: a callback called on each row an taking a row
           value as a list of Z3 objects associated to each field and
           creating a fact in the Z3 context for the row.
+        :param extract: an optional list of integer indexes defining the
+          args to give back as a result (used by unfolding)
+        :returns: None or a list of tuples for the columns requested in
+          extract.
         """
         use_cache = self.backup is not None
         if table_name in self.datasources:
@@ -184,6 +188,7 @@ class Datasource(object):
             access_fields = [get_field(field) for field in fields]
         if self.csv_writer is not None:
             self.csv_writer.writerow([table_name] + fields)
+        result = None if extract is None else []
         for obj in objs:
             try:
                 extracted = [
@@ -193,9 +198,14 @@ class Datasource(object):
                     self.csv_writer.writerow(
                         [table_name] +
                         [marshall(raw) for (_, raw, marshall) in extracted])
-                mk_relation([typ(raw) for (typ, raw, _) in extracted])
+                args = [typ(raw) for (typ, raw, _) in extracted]
+                mk_relation(args)
+                if extract is not None:
+                    row = tuple(args[pos] for pos in extract)
+                    result.append(row)
             except Exception as exc:
                 print(
                     "Error while retrieving table {} on {}".format(
                         table_name, obj))
                 raise exc
+        return result

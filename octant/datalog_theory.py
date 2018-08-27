@@ -35,6 +35,7 @@ from octant import datalog_parser as parser
 from octant import datalog_primitives as primitives
 from octant import datalog_source as source
 from octant import datalog_typechecker as typechecker
+from octant import datalog_unfolding as unfolding
 from octant import options
 from octant import source_openstack
 from octant import source_skydive
@@ -42,6 +43,7 @@ from octant import source_skydive
 
 def z3_to_array(expr):
     """Compiles back a Z3 result to a matrix of values"""
+
     def extract(item):
         """Extract a row"""
         kind = item.decl().kind()
@@ -78,7 +80,11 @@ class Z3Theory(object):
 
         self.compiler = (
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
-        self.compiler.compile()
+
+        def constant_compiler(expr):
+            return self.datasource.types[expr.type].to_z3(expr.val)
+
+        self.compiler.compile(constant_compiler)
         self.relations = {}
 
         context = z3.Fixedpoint()
@@ -88,7 +94,11 @@ class Z3Theory(object):
     def build_theory(self):
         """Builds the Z3 theory"""
         self.build_relations()
+        # TODO(piac6784) Retrieve table values as requested
+        # by self.compiler.unfold_plan. Build a datastructure with
+        # table columns needed (or all columns to begin.)
         self.retrieve_data()
+        logging.getLogger().debug("AST of rules:\n%s", self.rules)
         self.build_rules()
 
     def build_relations(self):
@@ -118,20 +128,29 @@ class Z3Theory(object):
         def mk_relation(relation):
             "Builds the Z3 relation"
             return lambda args: self.context.fact(relation(args))
+        unfold_plan = self.compiler.unfold_plan
         with self.datasource:
             for table_name, fields in six.iteritems(
                     self.compiler.extensible_tables):
+                extract = unfold_plan.tables.get(table_name)
                 relation = self.relations[table_name]
-                self.datasource.retrieve_table(
-                    table_name, fields, mk_relation(relation))
+                if extract:
+                    table_content = self.datasource.retrieve_table(
+                        table_name, fields, mk_relation(relation), extract)
+                    unfold_plan.contents[table_name] = table_content
+                else:
+                    self.datasource.retrieve_table(
+                        table_name, fields, mk_relation(relation))
 
-    def compile_expr(self, variables, expr):
+    def compile_expr(self, variables, expr, env):
         """Compile an expression to Z3"""
         if isinstance(expr, (ast.NumConstant, ast.StringConstant,
                              ast.BoolConstant, ast.IpConstant)):
             return self.datasource.types[expr.type].to_z3(expr.val)
         elif isinstance(expr, ast.Variable):
             full_id = expr.full_id()
+            if full_id in env:
+                return env[full_id]
             if full_id in variables:
                 return variables[full_id]
             expr_type = self.datasource.types[expr.type].type()
@@ -141,35 +160,50 @@ class Z3Theory(object):
         elif isinstance(expr, ast.Operation):
             operator = primitives.OPERATIONS[expr.operation].z3
             return operator(
-                *(self.compile_expr(variables, arg) for arg in expr.args))
+                *(self.compile_expr(variables, arg, env) for arg in expr.args))
         else:
             raise compiler.Z3NotWellFormed(
                 "cannot proceed with {}".format(expr))
 
-    def compile_atom(self, variables, atom):
+    def compile_atom(self, variables, atom, env):
         """Compiles an atom to Z3"""
-        args = [self.compile_expr(variables, expr) for expr in atom.args]
-        if atom.table in primitives.COMPARISON:
+        args = [self.compile_expr(variables, expr, env) for expr in atom.args]
+        if primitives.is_primitive(atom):
             compiled_atom = primitives.COMPARISON[atom.table](args)
         else:
             relation = self.relations[atom.table]
             compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
+    def build_rule(self, rule, env):
+        vars = {}
+        head = self.compile_atom(vars, rule.head, env)
+        body = [self.compile_atom(vars, atom, env) for atom in rule.body]
+        term1 = head if body == [] else z3.Implies(z3.And(*body), head)
+        term2 = (
+            term1 if vars == {}
+            else z3.ForAll(list(vars.values()), term1))
+        self.context.rule(term2)
+
     def build_rules(self):
         """Compiles rules to Z3"""
+        if cfg.CONF.doc:
+            plan = self.compiler.unfold_plan
+            env = unfolding.environ_from_plan(plan)
+        else:
+            env = {}
         for rule in self.rules:
-            vars = {}
-            head = self.compile_atom(vars, rule.head)
-            body = [self.compile_atom(vars, atom) for atom in rule.body]
-            term1 = head if body == [] else z3.Implies(z3.And(*body), head)
-            term2 = (
-                term1 if vars == {}
-                else z3.ForAll(list(vars.values()), term1))
-            self.context.rule(term2)
-        logging.getLogger().debug(
-            "Compiled rules:\n%s",
-            self.context.get_rules())
+            env_rule = env.get(rule.id, None)
+            if env_rule is not None:
+                for rec in env_rule:
+                    self.build_rule(rule, rec)
+            else:
+                self.build_rule(rule, {})
+        logger = logging.getLogger()
+        if logger.getEffectiveLevel() <= logging.DEBUG:
+            logger.debug("Compiled rules:")
+            for rule in self.context.get_rules():
+                logger.debug("%s", rule)
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""
@@ -185,7 +219,7 @@ class Z3Theory(object):
         for i in moves.xrange(len(atom.types)):
             atom.args[i].type = atom.types[i]
         vars = {}
-        query = self.compile_atom(vars, atom)
+        query = self.compile_atom(vars, atom, {})
         query = query if vars == {} else z3.Exists(list(vars.values()), query)
         self.context.query(query)
         types = [

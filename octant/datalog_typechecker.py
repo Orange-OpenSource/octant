@@ -70,7 +70,7 @@ def type_theory(rules, extensible_tables, datasource):
 
             Comparison are a particular case, due to polymorphism.
             """
-            if atom.table in primitives.COMPARISON:
+            if primitives.is_primitive(atom):
                 atom.types = [None, None]
             elif atom.table in dict_tables:
                 atom.types = dict_tables[atom.table]
@@ -168,7 +168,7 @@ def type_theory(rules, extensible_tables, datasource):
                                 param_type,
                                 atom
                             ))
-        if atom.table in primitives.COMPARISON:
+        if primitives.is_primitive(atom):
             param0 = atom.types[0]
             param1 = atom.types[1]
             if param0 is None:

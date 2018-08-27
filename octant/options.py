@@ -55,7 +55,8 @@ CLI_OPTIONS = [
     cfg.BoolOpt('csv', default=False, help="Output as csv file."),
     cfg.BoolOpt(
         'time', default=False, help="Print timing of the different phases."),
-    cfg.BoolOpt('debug', default=False, help="Set loglevel to debug")
+    cfg.BoolOpt('debug', default=False, help="Set loglevel to debug"),
+    cfg.BoolOpt('doc', default=False, help="Uses Difference of Cubes")
 ]
 
 cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')

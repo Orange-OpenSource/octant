@@ -19,6 +19,7 @@ from six import moves
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 from octant import datalog_typechecker as typechecker
+from octant import datalog_unfolding as unfolding
 
 
 class Z3NotWellFormed(Exception):
@@ -38,8 +39,9 @@ class Z3Compiler(object):
         self.datasource = datasource
         self.constants = constants
         self.typed_tables = {}
+        self.unfold_plan = []
 
-    def compile(self):
+    def compile(self, z3compiler):
         """Compile preprocess high level Datalog.
 
         It removes constants, make variables unique and
@@ -48,6 +50,9 @@ class Z3Compiler(object):
         """
         self.substitute_constants()
         self.find_base_relations()
+        unfolder = unfolding.Unfolding(
+            self.rules, self.extensible_tables, z3compiler)
+        self.unfold_plan = unfolder.proceed()
         self.typed_tables = typechecker.type_theory(
             self.rules, self.extensible_tables, self.datasource)
 

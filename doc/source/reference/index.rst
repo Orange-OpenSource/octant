@@ -13,5 +13,6 @@ Code documentation
    datalog_compiler
    datalog_typechecker
    datalog_theory
+   datalog_unfolding
    source_openstack
    source_skydive

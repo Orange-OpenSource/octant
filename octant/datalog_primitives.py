@@ -234,3 +234,8 @@ CONSTANTS = {
     "true": ast.BoolConstant(True),
     "false": ast.BoolConstant(False)
 }
+
+
+def is_primitive(atom):
+    """Checks if the atom is a primitive predicate"""
+    return atom.table in COMPARISON
