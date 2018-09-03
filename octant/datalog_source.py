@@ -39,6 +39,7 @@ class Datasource(object):
         self.csv_writer = None
         self.csvfile = None
         self.types = types
+        self.shared = {}
 
     def __enter__(self):
         """Configure the datasources"""
@@ -62,6 +63,7 @@ class Datasource(object):
             self.csv_writer = csv.writer(self.csvfile)
 
     def __exit__(self, typ, value, traceback):
+        self.shared = {}
         if self.csvfile is not None:
             self.csvfile.close()
 
@@ -81,6 +83,12 @@ class Datasource(object):
                  Callable[[S], R],
                  Dict[str, Tuple[str, Callable[[R], int | str]]]]]]
           ) -> None
+
+        The raw accessor may be a string. In that
+        case the accessor is defered to another entry and is shared among
+        all tables that use the same accessor. This is useful when a single
+        source populates several tables and we do not want to query this source
+        for each table.
 
         :param session: a callback ``() -> S`` where ``S`` is the type
            of a session.
@@ -146,7 +154,17 @@ class Datasource(object):
                 (index, objs) = self.backup.get(table_name, [])
             else:
                 index = None
-                objs = accessor.access(accessor.session)
+                if isinstance(accessor.access, tuple):
+                    (shared_accessor_id, access) = accessor.access
+                    if shared_accessor_id in self.shared:
+                        objs = self.shared[shared_accessor_id]
+                    else:
+                        shared_acc = self.datasources[shared_accessor_id]
+                        shared_objs = shared_acc.access(shared_acc.session)
+                        self.shared[table_name] = shared_objs
+                        objs = access(shared_objs)
+                else:
+                    objs = accessor.access(accessor.session)
         else:
             raise typechecker.Z3TypeError(
                 'Unknown primitive relation {}'.format(table_name))
