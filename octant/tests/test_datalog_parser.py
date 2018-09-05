@@ -77,11 +77,11 @@ class TestLexer(base.TestCase):
     def test_token(self):
         lex = parser.lexer
         for s, r in [
-            (':-', 'ENTAIL'), ('(', 'OPAR'), ('!', 'BANG'),
-            (')', 'CPAR'), (':', 'COLON'), (',', 'COMMA'),
-            ('=', 'EQUAL'), ('.', 'DOT'), ('~', 'TILDE'),
-            ('&', 'AMPERSAND'), ('|', 'BAR'), ('<', 'LT'),
-            ('<=', 'LE'), ('>', 'GT'), ('>=', 'GE')
+                (':-', 'ENTAIL'), ('(', 'OPAR'), ('!', 'BANG'),
+                (')', 'CPAR'), (':', 'COLON'), (',', 'COMMA'),
+                ('=', 'EQUAL'), ('.', 'DOT'), ('~', 'TILDE'),
+                ('&', 'AMPERSAND'), ('|', 'BAR'), ('<', 'LT'),
+                ('<=', 'LE'), ('>', 'GT'), ('>=', 'GE')
         ]:
             lex.input(s)
             t = lex.token()
@@ -180,8 +180,8 @@ class TestParser(base.TestCase):
                        ast.Atom('>', [ast.Variable('X'), ast.NumConstant(1)]),
                        ast.Atom('<', [ast.Variable('X'), ast.NumConstant(3)]),
                        ast.Atom('<=', [ast.Variable('X'), ast.NumConstant(4)]),
-                       ast.Atom('>=', [ast.Variable('X'), ast.NumConstant(0)])
-                       ])],
+                       ast.Atom('>=',
+                                [ast.Variable('X'), ast.NumConstant(0)])])],
             r)
 
     def test_operation(self):

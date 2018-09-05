@@ -21,10 +21,11 @@ test_datalog_theory
 Tests for `datalog_theory` module.
 """
 
+import sys
+
 from contextlib import contextmanager
 import mock
 import six
-import sys
 
 import z3
 
