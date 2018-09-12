@@ -255,3 +255,57 @@ class TestSourceSkydive(base.TestCase):
         mock_conf.restore = None
         source.register(src)
         mock_client.assert_called_once()
+
+    @mock.patch("octant.source_skydive._filter_node")
+    def test_preprocess_filter(self, mock_filter_node):
+        sample = [
+            MockNode({'id': id, 'metadata': {'filters': f}})
+            for (id, f) in enumerate([
+                'priority=1',
+                'priority=2,dl_src=00:BB:CC:DD:EE:FF',
+                'priority=3,nw_src=192.168.0.0/255.255.0.0',
+                'priority=4,tp_src=123',
+                'priority=5,vlan_tci=0x100',
+                'priority=6,ip,icmp,tcp,arp',
+                'priority=7,tunnel_id=20',
+                'priority=8,foo,bar=4',
+            ])
+        ]
+        mock_filter_node.return_value = lambda t: t
+        result = source.preprocess_filters(sample)
+        self.assertEqual((1, 0, '00:bb:cc:dd:ee:ff', None),
+                         result['dl_src'][0])
+        self.assertEqual((2, 0, '192.168.0.0', '255.255.0.0'),
+                         result['nw_src'][0])
+        self.assertEqual((3, 0, 123, None), result['tp_src'][0])
+        self.assertEqual((4, 0, 256, None), result['vlan_tci'][0])
+        self.assertEqual(8, len(result['end']))
+        self.assertEqual(4, len(result['eth_type']))
+        self.assertEqual(2, len(result['ip_proto']))
+        self.assertEqual(2, len(result['unknown']))
+
+    @mock.patch("octant.source_skydive._filter_node")
+    def test_preprocess_actions(self, mock_filter_node):
+        sample = [
+            MockNode({'id': id, 'metadata': {'actions': a}})
+            for (id, a) in enumerate([
+                '1',
+                'output:2',
+                'output(port=3;max_len=5)',
+                'NORMAL',
+                'drop',
+                'resubmit(6;7)',
+                'resubmit:8',
+                'resubmit(;9)',
+                'goto_table:8',
+            ])
+        ]
+        mock_filter_node.return_value = lambda t: t
+        result = source.preprocess_actions(sample)
+        self.assertEqual(9, len(result['end']))
+        self.assertEqual(1, len(result['drop']))
+        self.assertEqual(1, len(result['goto_table']))
+        self.assertEqual(4, len(result['output']))
+        self.assertEqual(
+            [(5, 0, 6, 7), (6, 0, 8, None), (7, 0, None, 9)],
+            sorted(result['resubmit']))

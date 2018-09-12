@@ -79,13 +79,13 @@ PROTO_SHORTHANDS = {
     'ipv6': (0x86dd, None),
     'icmp': (0x0800, 1),
     'icmp6': (0x86dd, 58),
-    'tcp ': (0x0800, 6),
+    'tcp': (0x0800, 6),
     'tcp6': (0x86dd, 6),
-    'udp ': (0x0800, 17),
+    'udp': (0x0800, 17),
     'udp6': (0x86dd, 17),
     'sctp': (0x0800, 132),
     'sctp6': (0x86dd, 132),
-    'arp ': (0x0806, None),
+    'arp': (0x0806, None),
     'rarp': (0x8035, None),
     'mpls': (0x8847, None),
     'mplsm': (0x8848, None),
@@ -124,6 +124,8 @@ def preprocess_filters(cnx):
     for (rule_id, elt_list) in prepared_filters:
         pos = 0
         for elt in elt_list:
+            # Better ensure immunity to capitalization
+            elt = elt.lower()
             if elt.startswith('priority='):
                 continue
             if elt == 'end':
@@ -176,19 +178,25 @@ PORT_SHORTHANDS = {
     'flood': -5, 'normal': -6, 'table': -7, 'in_port': -8
 }
 
-RE_OUT_ACTION = re.compile('^(output:)?([0-9][0-9]*)$')
+RE_OUT_ACTION = re.compile(
+    '^(?:(?:output:)?([0-9][0-9]*)|output[(].*port=([0-9]+).*)$')
 
 RE_COLON_ACTION = re.compile(
     '^(mod_vlan_vid|mod_vlan_pcp|push_vlan|push_mpls|pop_mpls|mod_dl_src|'
-    'mod_dl_dst|mod_nw_src|mod_nw_dst|mod_tp_src|mod_tp_dst|goto_table)'
+    'mod_dl_dst|mod_nw_src|mod_nw_dst|mod_tp_src|mod_tp_dst|'
+    'mod_nw_tos|mod_nw_ecn|mod_nw_ttl|goto_table)'
     ':([0-9][x0-9:.]*)')
+
+RE_RESUBMIT = re.compile('^resubmit(?::([0-9]+)|[(]([0-9]*);([0-9]*)[)])')
 
 SIMPLE_ACTIONS = ['end', 'drop', 'strip_vlan', 'pop_vlan']
 
 ACTION_FIELDS = [
-    'end', 'out_port', 'drop', 'resubmit', 'push_vlan', 'mod_vlan_vid',
+    'end', 'output', 'drop', 'resubmit', 'push_vlan', 'mod_vlan_vid',
     'strip_vlan', 'mod_nw_src', 'mod_nw_dst', 'mod_dl_src', 'mod_dl_dst',
     'mod_tp_src', 'mod_tp_dst', 'strip_vlan', 'pop_vlan', 'goto_table',
+    'push_mpls', 'pop_mpls', 'mod_nw_tos', 'mod_nw_ecn', 'mod_nw_ttl',
+    'resubmit',
     'unknown']
 
 
@@ -224,13 +232,32 @@ def preprocess_actions(cnx):
                 continue
             if elt in PORT_SHORTHANDS:
                 out_port = PORT_SHORTHANDS[elt]
-                result['out_port'].append((rule_id, pos, out_port))
+                result['output'].append((rule_id, pos, out_port))
                 pos = pos + 1
                 continue
             matched = RE_OUT_ACTION.match(elt)
             if matched:
-                out_port = matched.group(2)
-                result['out_port'].append((rule_id, pos, int(out_port, 0)))
+                out_port = matched.group(1)
+                if out_port is None:
+                    out_port = matched.group(2)
+                result['output'].append((rule_id, pos, int(out_port, 0)))
+                pos = pos + 1
+                continue
+            matched = RE_RESUBMIT.match(elt)
+            if matched:
+                port = matched.group(1)
+                table = None
+                if port is None:
+                    port = matched.group(2)
+                    table = matched.group(3)
+                    if port == '':
+                        port = None
+                    if table == '':
+                        table = None
+                result['resubmit'].append((
+                    rule_id, pos,
+                    int(port) if port is not None else None,
+                    int(table) if table is not None else None))
                 pos = pos + 1
                 continue
             matched = RE_COLON_ACTION.match(elt)
@@ -359,13 +386,19 @@ TABLES = {
     'ska_push_vlan': sk_action('push_vlan', [('vlan', 'int')]),
     'ska_mod_vlan_vid': sk_action('mod_vlan_vid', [('vlan', 'int')]),
     'ska_mod_vlan_pcp': sk_action('mod_vlan_pcp', [('pcp', 'int')]),
+    'ska_push_mpls': sk_action('push_mpls', [('eth_type', 'int')]),
+    'ska_pop_mpls': sk_action('pop_mpls', [('eth_type', 'int')]),
     'ska_mod_nw_src': sk_action('mod_nw_src', [('src', 'ip_address')]),
     'ska_mod_nw_dst': sk_action('mod_nw_dst', [('dst', 'ip_address')]),
+    'ska_mod_nw_tos': sk_action('mod_nw_dst', [('tos', 'int')]),
+    'ska_mod_nw_ecn': sk_action('mod_nw_dst', [('ecn', 'int')]),
+    'ska_mod_nw_ttl': sk_action('mod_nw_dst', [('ttl', 'int')]),
     'ska_mod_dl_src': sk_action('mod_dl_src', [('src', 'string')]),
     'ska_mod_dl_dst': sk_action('mod_dl_dst', [('dst', 'string')]),
     'ska_mod_tp_src': sk_action('mod_tp_src', [('src', 'int')]),
     'ska_mod_tp_dst': sk_action('mod_tp_dst', [('dst', 'int')]),
     'ska_goto_table': sk_action('goto_table', [('table', 'int')]),
+    'ska_resubmit': sk_action('resubmit', [('port', 'int'), ('table', 'int')]),
     'ska_unknown': sk_action('unknown', [('instr', 'string')]),
 
     'sk_filter': (
