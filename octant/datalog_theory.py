@@ -131,12 +131,13 @@ class Z3Theory(object):
                              ast.BoolConstant, ast.IpConstant)):
             return self.datasource.types[expr.type].to_z3(expr.val)
         elif isinstance(expr, ast.Variable):
-            if expr.id in variables:
-                return variables[expr.id]
+            full_id = expr.full_id()
+            if full_id in variables:
+                return variables[full_id]
             expr_type = self.datasource.types[expr.type].type()
-            var = z3.Const(expr.id, expr_type)
+            var = z3.Const(expr.id + '-' + str(expr.rule_id), expr_type)
             self.context.declare_var(var)
-            variables[expr.id] = var
+            variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
             operator = primitives.OPERATIONS[expr.operation].z3

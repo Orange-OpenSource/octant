@@ -47,7 +47,6 @@ class Z3Compiler(object):
         controls the type-checker.
         """
         self.substitute_constants()
-        self.rename_variables()
         self.find_base_relations()
         self.typed_tables = typechecker.type_theory(
             self.rules, self.primitive_tables, self.datasource)
@@ -74,34 +73,6 @@ class Z3Compiler(object):
             self.substitutes_constants_in_array(rule.head.args)
             for atom in rule.body:
                 self.substitutes_constants_in_array(atom.args)
-
-    def rename_variables(self):
-        """Rename variables phase"""
-        # WARNING: without nonlocal (python3) known must only be modified by
-        # side effect. Assignment would create a new scope in inner functions !
-        known = set()
-
-        def rename_var(old, count=0):
-            """Rename a variable"""
-            newname = "{}_{}".format(old, count)
-            if newname in known:
-                return rename_var(old, count + 1)
-            known.add(newname)
-            return newname
-
-        def rename_rule(rule):
-            """Rename in a rule"""
-            head_vars = rule.head_variables()
-            body_vars = rule.body_variables()
-            all_vars = body_vars.union(head_vars)
-            seen = all_vars.intersection(known)
-            known.update(all_vars)
-            if seen:
-                renaming = {v: rename_var(v) for v in seen}
-                rule.rename_variables(renaming)
-
-        for rule in self.rules:
-            rename_rule(rule)
 
     def find_base_relations(self):
         """Extracts base relations of the theory"""
