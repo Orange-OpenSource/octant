@@ -41,8 +41,8 @@ def type_theory(rules, primitive_tables, datasource):
         def subst_var(arg):
             """Makes var instances unique"""
             if isinstance(arg, ast.Variable):
-                if arg.id in dict_vars:
-                    var_inst = dict_vars[arg.id]
+                if arg.full_id() in dict_vars:
+                    var_inst = dict_vars[arg.full_id()]
                     if arg.type is not None:
                         if var_inst.type is None:
                             var_inst.type = arg.type
@@ -53,7 +53,7 @@ def type_theory(rules, primitive_tables, datasource):
                                     .format(arg.id, var_inst.type, arg.type))
                     return var_inst
                 else:
-                    dict_vars[arg.id] = arg
+                    dict_vars[arg.full_id()] = arg
                     return arg
             elif isinstance(arg, ast.Operation):
                 arg.args = [subst_var(a) for a in arg.args]

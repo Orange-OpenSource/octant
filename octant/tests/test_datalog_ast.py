@@ -42,11 +42,15 @@ class TestVariable(base.TestCase):
         self.assertIs(True, 'id' in lvars)
 
     def test_renaming(self):
-        v = ast.Variable('id')
-        v.rename_variables({'a': 'b', 'c': 'd'})
-        self.assertEqual('id', v.id)
-        v.rename_variables({'a': 'b', 'c': 'd', 'id': 'new'})
-        self.assertEqual('new', v.id)
+        v1 = ast.Variable('id')
+        v2 = ast.Variable('id')
+        v3 = ast.Variable('id')
+        self.assertEqual(v1, v2)
+        v1.pin_variables(1)
+        v2.pin_variables(1)
+        v3.pin_variables(2)
+        self.assertEqual(v1, v2)
+        self.assertIs(False, v1 == v3)
 
     def test_str(self):
         v = ast.Variable('V', dtype='string')
@@ -149,13 +153,6 @@ class TestOperation(base.TestCase):
         self.assertIs(True, 'V2' in lvars)
         self.assertIs(True, 'V3' in lvars)
 
-    def test_renaming(self):
-        o, v1, v2, v3 = mk_o()
-        o.rename_variables({'V1': 'R1', 'V3': 'R3'})
-        self.assertEqual(v1.id, 'R1')
-        self.assertEqual(v2.id, 'V2')
-        self.assertEqual(v3.id, 'R3')
-
 
 def mk_a():
     o, v1, v2, v3 = mk_o()
@@ -185,13 +182,6 @@ class TestAtom(base.TestCase):
         self.assertIs(True, 'V1' in lvars)
         self.assertIs(True, 'V2' in lvars)
         self.assertIs(True, 'V3' in lvars)
-
-    def test_renaming(self):
-        a, v1, v2, v3 = mk_a()
-        a.rename_variables({'V1': 'R1', 'V2': 'R2'})
-        self.assertEqual(v1.id, 'R1')
-        self.assertEqual(v2.id, 'R2')
-        self.assertEqual(v3.id, 'V3')
 
     def test_eq(self):
         v = ast.Variable('V')
@@ -247,12 +237,11 @@ class TestRule(base.TestCase):
         self.assertIs(True, 'q' in ltables)
         self.assertIs(True, 'r' in ltables)
 
-    def test_renaming(self):
+    def test_pinning(self):
         r, v1, v2, v3 = mk_r()
-        r.rename_variables({'V1': 'R1', 'V2': 'R2'})
-        self.assertEqual(v1.id, 'R1')
-        self.assertEqual(v2.id, 'R2')
-        self.assertEqual(v3.id, 'V3')
+        self.assertEqual(v1.rule_id, r.id)
+        self.assertEqual(v2.rule_id, r.id)
+        self.assertEqual(v3.rule_id, r.id)
 
     def test_eq(self):
         a1 = ast.Atom('p', [])

@@ -93,79 +93,108 @@ def pp(s):
     return parser.wrapped_parse(s)
 
 
+def reset():
+    # hackish way of reseting rule_counter to get rule equality
+    ast.Rule.rule_counter = 0
+
+
 class TestParser(base.TestCase):
 
     def test_parser_simple_head(self):
+        reset()
         r = pp("p().")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', []), [])],
             r)
 
     def test_parser_two_rules(self):
+        reset()
         r = pp("p(). q().")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', []), []),
              ast.Rule(ast.Atom('q', []), [])],
             r)
 
     def test_parser_simple_body(self):
+        reset()
         r = pp("p() :- q().")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', []), [ast.Atom('q', [])])],
             r)
 
     def test_parser_two_body(self):
+        reset()
         r = pp("p() :- q(), r().")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', []),
                       [ast.Atom('q', []), ast.Atom('r', [])])],
             r)
 
     def test_parser_negated_atom(self):
+        reset()
         r = pp("p() :- !q().")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', []), [ast.Atom('q', [], negated=True)])],
             r)
 
     def test_expr_one(self):
+        reset()
         r = pp("p(1).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.NumConstant(1)]), [])],
             r)
 
     def test_expr_multi(self):
+        reset()
         r = pp("p(1, 2, 3).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.NumConstant(i) for i in [1, 2, 3]]),
                       [])],
             r)
 
     def test_expr_string(self):
+        reset()
         r = pp('p("aaa").')
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.StringConstant("aaa")]), [])],
             r)
 
     def test_expr_ip(self):
+        reset()
         r = pp("p(192.168.0.1).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.IpConstant('192.168.0.1')]), [])],
             r)
 
     def test_expr_constant(self):
+        reset()
         r = pp("p(c).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.Constant('c')]), [])],
             r)
 
     def test_expr_var(self):
+        reset()
         r = pp("p(X).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.Variable('X')]), [])],
             r)
 
     def test_expr_label(self):
+        reset()
         r = pp("p(X) :- q(l1=X, l2=3).")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.Variable('X')]),
                       [ast.Atom('q', [ast.Variable('X'), ast.NumConstant(3)],
@@ -173,7 +202,9 @@ class TestParser(base.TestCase):
             r)
 
     def test_comparison(self):
+        reset()
         r = pp("p(X) :- X=2, X>1, X<3, X<=4, X>=0.")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.Variable('X')]),
                       [ast.Atom('=', [ast.Variable('X'), ast.NumConstant(2)]),
@@ -185,7 +216,9 @@ class TestParser(base.TestCase):
             r)
 
     def test_operation(self):
+        reset()
         r = pp("p(X) :- X=1&2, X=3|4, X=~5.")
+        reset()
         self.assertEqual(
             [ast.Rule(ast.Atom('p', [ast.Variable('X')]), [
                 ast.Atom('=', [

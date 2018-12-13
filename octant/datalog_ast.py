@@ -30,9 +30,16 @@ class AST(object):
 class Rule(AST):
     """Represents a rule"""
 
+    rule_counter = 0
+
     def __init__(self, head, body):
+        self.id = Rule.rule_counter
+        Rule.rule_counter += 1
         self.head = head
         self.body = body
+        head.pin_variables(self.id)
+        for atom in body:
+            atom.pin_variables(self.id)
 
     def body_variables(self):
         """Body variables of a rule as a set."""
@@ -49,12 +56,6 @@ class Rule(AST):
     def body_tables(self):
         """All tables used by the rule"""
         return set(atom.table for atom in self.body)
-
-    def rename_variables(self, renaming):
-        """Rename variables according to renaming"""
-        self.head.rename_variables(renaming)
-        for atom in self.body:
-            atom.rename_variables(renaming)
 
     def __repr__(self):
         return "{} :- {}".format(self.head, self.body)
@@ -87,10 +88,10 @@ class Atom(AST):
         """Variables of the atom"""
         return set(v for x in self.args for v in x.variables())
 
-    def rename_variables(self, renaming):
-        """Rename variables"""
+    def pin_variables(self, rule_id):
+        """Make variables distinct by adding the rule_id"""
         for arg in self.args:
-            arg.rename_variables(renaming)
+            arg.pin_variables(rule_id)
 
     def __repr__(self):
         return "{}{}({})".format(
@@ -123,8 +124,12 @@ class Expr(AST):
     def __eq__(self, other):
         raise NotImplementedError
 
-    def rename_variables(self, renaming):
-        """Variable renaming (default is nothing)"""
+    def pin_variables(self, rule_id):
+        """Variable pining
+
+        Pinning a variable associates it to a single rule. Default operation
+        on expr is nothing.
+        """
         pass
 
 
@@ -139,6 +144,7 @@ class Variable(Expr):
         super(Variable, self).__init__(dtype=dtype)
         # pylint: disable=invalid-name
         self.id = ident
+        self.rule_id = None
 
     def variables(self):
         return set([self.id])
@@ -149,13 +155,16 @@ class Variable(Expr):
             else "{}:{}".format(self.id, self.type))
         return expr_repr
 
-    def rename_variables(self, renaming):
-        if self.id in renaming:
-            self.id = renaming[self.id]
+    def pin_variables(self, rule_id):
+        self.rule_id = rule_id
+
+    def full_id(self):
+        "Unique name of the variable valid in program scope."
+        return (self.id, self.rule_id)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return other.id == self.id
+            return other.full_id() == self.full_id()
         return False
 
 
@@ -176,9 +185,9 @@ class Operation(Expr):
     def variables(self):
         return set(v for x in self.args for v in x.variables())
 
-    def rename_variables(self, renaming):
+    def pin_variables(self, rule_id):
         for arg in self.args:
-            arg.rename_variables(renaming)
+            arg.pin_variables(rule_id)
 
     def __repr__(self):
         return "{}({})".format(self.operation, self.args)
@@ -276,6 +285,9 @@ class Constant(AST):
 
     def __str__(self):
         return self.name
+
+    def pin_variables(self, rule_id):
+        pass
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):

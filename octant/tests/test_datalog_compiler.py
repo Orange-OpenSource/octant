@@ -79,6 +79,7 @@ class Any(ast.Variable):
 class TestCompiler(base.TestCase):
 
     def test_constants(self):
+        ast.Rule.rule_counter = 0
         rules = pp(PROG1.format('a', 'b', 'c'))
         constants = {
             'a': ast.StringConstant('n'),
@@ -86,7 +87,9 @@ class TestCompiler(base.TestCase):
             'c': ast.NumConstant(0)}
         comp = compiler.Z3Compiler(rules, constants, None)
         comp.substitute_constants()
-        self.assertEqual(pp(PROG1.format('"n"', '2', '0')), rules)
+        ast.Rule.rule_counter = 0
+        expected = pp(PROG1.format('"n"', '2', '0'))
+        self.assertEqual(expected, rules)
 
     def test_constants_unknown(self):
         rules = pp(PROG1.format('a', 'b', 'd'))
@@ -97,27 +100,18 @@ class TestCompiler(base.TestCase):
         comp = compiler.Z3Compiler(rules, constants, None)
         self.assertRaises(compiler.Z3NotWellFormed, comp.substitute_constants)
 
-    def test_rename_vars(self):
-        rules = pp(PROG2.format('X', 'X', 'Y', 'X_0'))
-        comp = compiler.Z3Compiler(rules, None, None)
-        comp.rename_variables()
-        v1 = rules[0].head.args[0].id
-        v2 = rules[1].head.args[0].id
-        v3 = rules[1].body[0].args[1].id
-        v4 = rules[2].head.args[0].id
-
-        self.assertEqual(pp(PROG2.format(v1, v2, v3, v4)), rules)
-        self.assertIs(True, distinct([v1, v2, v3, v4]))
-
     def test_flatten(self):
+        ast.Rule.rule_counter = 0
         rules = pp(PROG3)
         comp = compiler.Z3Compiler(rules, None, MockDatasource(['q']))
         comp.find_base_relations()
+        ast.Rule.rule_counter = 0
         rules2 = pp(PROG3B)
         # uses compiler to inject custom variable Any as a replacement
         # for constant any.
         comp2 = compiler.Z3Compiler(rules2, {'any': Any()}, None)
         comp2.substitute_constants()
+        # This is a hack. We had to reset the rule_counter
         self.assertEqual(rules2, rules)
         # check that all the variables are fresh
         vars = [
