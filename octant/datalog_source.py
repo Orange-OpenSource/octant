@@ -99,7 +99,7 @@ class Datasource(object):
             self.datasources[tablename] = (
                 TableAccessor(session=session, access=access, fields=fields))
 
-    def is_primitive(self, atom):
+    def is_extensible(self, atom):
         """Check if the atom uses a table registered in the datasource
 
         :param atom: the atom
@@ -118,7 +118,8 @@ class Datasource(object):
         if table in self.datasources:
             prim = self.datasources[table].fields
         else:
-            raise typechecker.Z3TypeError("Unknown primitive {}".format(table))
+            raise typechecker.Z3TypeError(
+                "Unknown extensible table {}".format(table))
         try:
             args = [prim[field][0] for field in fields]
         except KeyError as exc:

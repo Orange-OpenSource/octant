@@ -29,11 +29,11 @@ class Z3NotWellFormed(Exception):
 
 
 class Z3Compiler(object):
-    """Prepare octant Datalog for compilation to Z3 (primitive tables)."""
+    """Prepare octant Datalog for compilation to Z3 (extensible tables)."""
 
     def __init__(self, rules, constants, datasource):
         self.rules = rules
-        self.primitive_tables = {}
+        self.extensible_tables = {}
         self.var_count = 0
         self.datasource = datasource
         self.constants = constants
@@ -43,13 +43,13 @@ class Z3Compiler(object):
         """Compile preprocess high level Datalog.
 
         It removes constants, make variables unique and
-        extract columns used in primitive tables. It also
+        extract columns used in extensible tables. It also
         controls the type-checker.
         """
         self.substitute_constants()
         self.find_base_relations()
         self.typed_tables = typechecker.type_theory(
-            self.rules, self.primitive_tables, self.datasource)
+            self.rules, self.extensible_tables, self.datasource)
 
     def substitutes_constants_in_array(self, args):
         """Substitute constants in arguments arrays"""
@@ -77,29 +77,29 @@ class Z3Compiler(object):
     def find_base_relations(self):
         """Extracts base relations of the theory"""
         for rule in self.rules:
-            if self.datasource.is_primitive(rule.head):
+            if self.datasource.is_extensible(rule.head):
                 raise Z3NotWellFormed("No base predicate allowed in head.")
             for atom in rule.body:
-                if not self.datasource.is_primitive(atom):
+                if not self.datasource.is_extensible(atom):
                     continue
-                fields = self.primitive_tables.setdefault(atom.table, [])
+                fields = self.extensible_tables.setdefault(atom.table, [])
                 if atom.labels is None:
                     raise Z3NotWellFormed(
-                        "No labels for primitive atom {}".format(atom))
+                        "No labels for extensible atom {}".format(atom))
                 for label in atom.labels:
                     if label not in fields:
                         fields.append(label)
-        for fields in self.primitive_tables.values():
+        for fields in self.extensible_tables.values():
             fields.sort()
         for rule in self.rules:
             for atom in rule.body:
-                if self.datasource.is_primitive(atom):
-                    self.flatten(atom, self.primitive_tables[atom.table])
+                if self.datasource.is_extensible(atom):
+                    self.flatten(atom, self.extensible_tables[atom.table])
 
     def flatten(self, atom, fields):
         """Replace named arguments with positional args.
 
-        Knowing the columns in use for primitive tables, column names are
+        Knowing the columns in use for extensible tables, column names are
         replaced by positions as regular tables.
         """
         dict_arg = {}

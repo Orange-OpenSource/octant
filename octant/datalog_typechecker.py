@@ -26,15 +26,15 @@ class Z3TypeError(Exception):
         super(Z3TypeError, self).__init__(self, *args, **kwargs)
 
 
-def type_theory(rules, primitive_tables, datasource):
+def type_theory(rules, extensible_tables, datasource):
     """Types a given set of rules"""
 
     def prepare_typing():
-        """Initialize typing with info from primitive tables"""
+        """Initialize typing with info from extensible tables"""
         dict_vars = {}
         dict_tables = {}
-        # Initialize the types of primitive tables in use.
-        for (table, fields) in primitive_tables.items():
+        # Initialize the types of extensible tables in use.
+        for (table, fields) in extensible_tables.items():
             args_types = datasource.get_table_types(table, fields)
             dict_tables[table] = args_types
 

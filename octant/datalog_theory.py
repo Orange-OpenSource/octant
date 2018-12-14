@@ -120,7 +120,7 @@ class Z3Theory(object):
             return lambda args: self.context.fact(relation(args))
         with self.datasource:
             for table_name, fields in six.iteritems(
-                    self.compiler.primitive_tables):
+                    self.compiler.extensible_tables):
                 relation = self.relations[table_name]
                 self.datasource.retrieve_table(
                     table_name, fields, mk_relation(relation))

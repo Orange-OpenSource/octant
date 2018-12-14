@@ -30,7 +30,7 @@ class MockDatasource(object):
     def __init__(self, prims):
         self.prims = prims
 
-    def is_primitive(self, atom):
+    def is_extensible(self, atom):
         return atom.table in self.prims
 
 

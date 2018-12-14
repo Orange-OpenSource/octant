@@ -80,8 +80,8 @@ class TestDatasource(base.TestCase):
 
     def test_primitive(self):
         """Registration"""
-        self.assertIs(True, self.src.is_primitive(ast.Atom("T1", [])))
-        self.assertIs(False, self.src.is_primitive(ast.Atom("G3", [])))
+        self.assertIs(True, self.src.is_extensible(ast.Atom("T1", [])))
+        self.assertIs(False, self.src.is_extensible(ast.Atom("G3", [])))
 
     def test_types(self):
         ltypes = self.src.get_table_types("T1", ["f3", "f2"])
