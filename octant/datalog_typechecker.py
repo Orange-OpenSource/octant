@@ -13,6 +13,7 @@
 #    under the License.
 
 """Type-checker for Datalog"""
+import logging
 from six import moves
 
 from octant import datalog_ast as ast
@@ -202,4 +203,5 @@ def type_theory(rules, extensible_tables, datasource):
             for atom in rule.body:
                 new_work = type_atom(atom)
                 work_done = work_done or new_work
+    logging.getLogger().debug("Infered types:\n%s", dict_tables)
     return dict_tables
