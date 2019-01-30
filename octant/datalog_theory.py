@@ -80,7 +80,6 @@ class Z3Theory(object):
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
         self.compiler.compile()
         self.relations = {}
-        self.vars = {}
 
         context = z3.Fixedpoint()
         context.set(engine='datalog')
@@ -137,7 +136,6 @@ class Z3Theory(object):
                 return variables[full_id]
             expr_type = self.datasource.types[expr.type].type()
             var = z3.Const(expr.id + '-' + str(expr.rule_id), expr_type)
-            self.context.declare_var(var)
             variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
@@ -161,9 +159,14 @@ class Z3Theory(object):
     def build_rules(self):
         """Compiles rules to Z3"""
         for rule in self.rules:
-            head = self.compile_atom(self.vars, rule.head)
-            body = [self.compile_atom(self.vars, atom) for atom in rule.body]
-            self.context.rule(head, body)
+            vars = {}
+            head = self.compile_atom(vars, rule.head)
+            body = [self.compile_atom(vars, atom) for atom in rule.body]
+            term1 = head if body == [] else z3.Implies(z3.And(*body), head)
+            term2 = (
+                term1 if vars == {}
+                else z3.ForAll(list(vars.values()), term1))
+            self.context.rule(term2)
         logging.getLogger().debug(
             "Compiled rules:\n%s",
             self.context.get_rules())
@@ -181,7 +184,9 @@ class Z3Theory(object):
                 "Arity of predicate inconsistency in {}".format(atom))
         for i in moves.xrange(len(atom.types)):
             atom.args[i].type = atom.types[i]
-        query = self.compile_atom({}, atom)
+        vars = {}
+        query = self.compile_atom(vars, atom)
+        query = query if vars == {} else z3.Exists(list(vars.values()), query)
         self.context.query(query)
         types = [
             self.datasource.types[arg.type]
