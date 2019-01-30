@@ -53,7 +53,8 @@ CLI_OPTIONS = [
         help='Use a backup file instead of a connection'),
     cfg.BoolOpt('pretty', help="Pretty prints results."),
     cfg.BoolOpt('csv', help="Output as csv file."),
-    cfg.BoolOpt('time', help="Print timing of the different phases.")
+    cfg.BoolOpt('time', help="Print timing of the different phases."),
+    cfg.BoolOpt('debug', help="Set loglevel to debug")
 ]
 
 cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')

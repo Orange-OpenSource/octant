@@ -17,6 +17,7 @@
 from __future__ import print_function
 
 import csv
+import logging
 import sys
 import textwrap
 import time
@@ -163,6 +164,9 @@ class Z3Theory(object):
             head = self.compile_atom(self.vars, rule.head)
             body = [self.compile_atom(self.vars, atom) for atom in rule.body]
             self.context.rule(head, body)
+        logging.getLogger().debug(
+            "Compiled rules:\n%s",
+            self.context.get_rules())
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""
@@ -231,11 +235,15 @@ def print_result(query, variables, answers, time_used, show_pretty):
 
 def main():
     """Octant entry point"""
+    logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     args = sys.argv[1:]
     options.init(args)
     time_required = cfg.CONF.time
     csv_out = cfg.CONF.csv
     pretty = cfg.CONF.pretty
+    debug = cfg.CONF.debug
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
     if csv_out and (time_required or pretty):
         print("Cannot use option --csv with --time or --pretty.")
         sys.exit(1)
