@@ -51,14 +51,16 @@ CLI_OPTIONS = [
     cfg.StrOpt(
         'restore', default=None,
         help='Use a backup file instead of a connection'),
-    cfg.BoolOpt('pretty', help="Pretty prints results."),
-    cfg.BoolOpt('csv', help="Output as csv file."),
-    cfg.BoolOpt('time', help="Print timing of the different phases."),
-    cfg.BoolOpt('debug', help="Set loglevel to debug")
+    cfg.BoolOpt('pretty', default=False, help="Pretty prints results."),
+    cfg.BoolOpt('csv', default=False, help="Output as csv file."),
+    cfg.BoolOpt(
+        'time', default=False, help="Print timing of the different phases."),
+    cfg.BoolOpt('debug', default=False, help="Set loglevel to debug")
 ]
 
 cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')
 cfg.CONF.register_opts(SKYDIVE_OPTIONS, group='skydive')
+cfg.CONF.register_opts(CLI_OPTIONS)
 cfg.CONF.register_cli_opts(CLI_OPTIONS)
 
 
@@ -72,5 +74,6 @@ def init(args, **kwargs):
 def list_opts():
     """List config file options for documentation generation"""
     return [
+        ('DEFAULT', CLI_OPTIONS),
         ('openstack', OPENSTACK_OPTIONS),
         ('skydive', SKYDIVE_OPTIONS)]
