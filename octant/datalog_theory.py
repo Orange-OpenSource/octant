@@ -39,6 +39,7 @@ from octant import datalog_unfolding as unfolding
 from octant import options
 from octant import source_openstack
 from octant import source_skydive
+from octant import z3_comparison as z3c
 
 
 def z3_to_array(expr):
@@ -88,7 +89,10 @@ class Z3Theory(object):
         self.relations = {}
 
         context = z3.Fixedpoint()
-        context.set(engine='datalog')
+        z3_config = {"engine": "datalog"}
+        if cfg.CONF.doc:
+            z3_config["datalog.default_relation"] = "doc"
+        context.set(**z3_config)
         self.context = context
 
     def build_theory(self):
@@ -199,6 +203,7 @@ class Z3Theory(object):
                     self.build_rule(rule, rec)
             else:
                 self.build_rule(rule, {})
+        z3c.register(self.context)
         logger = logging.getLogger()
         if logger.getEffectiveLevel() <= logging.DEBUG:
             logger.debug("Compiled rules:")

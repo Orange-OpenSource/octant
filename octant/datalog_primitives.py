@@ -20,6 +20,7 @@ import six
 import z3
 
 from octant import datalog_ast as ast
+from octant import z3_comparison as z3c
 
 
 MARSHALLED_NONE = "-*-None-*-"
@@ -211,10 +212,10 @@ OPERATIONS = {
 
 COMPARISON = {
     "=": (lambda args: args[0] == args[1]),
-    ">": (lambda args: args[0] > args[1]),
-    ">=": (lambda args: args[0] >= args[1]),
-    "<": (lambda args: args[0] < args[1]),
-    "<=": (lambda args: args[0] <= args[1]),
+    ">": (lambda args: z3c.z3_gt(args[0], args[1])),
+    ">=": (lambda args: z3c.z3_ge(args[0], args[1])),
+    "<": (lambda args: z3c.z3_lt(args[0], args[1])),
+    "<=": (lambda args: z3c.z3_le(args[0], args[1])),
 }
 
 CONSTANTS = {
