@@ -1,0 +1,143 @@
+#    Copyright 2018 Orange
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+heat_template_version: queens
+
+description: Three networks in a row
+
+parameters:
+  image:
+    type: string
+    description: "Image used to create VMs"
+    default: cirros-0.3.5-x86_64-disk
+
+  flavor:
+    type: string
+    description: "Flavor of VMs created"
+    default: cirros256
+
+resources:
+  net1:
+    type: OS::Neutron::Net
+    properties:
+      name: net1
+  subnet1:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: net1 }
+      name: subnet1
+      cidr: 192.168.1.0/24
+
+  net2:
+    type: OS::Neutron::Net
+    properties:
+      name: net2
+
+  subnet2:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: net2 }
+      name: subnet2
+      cidr: 192.168.2.0/24
+      host_routes: [{ destination: 192.168.3.0/24, nexthop: 192.168.2.20 }]
+
+  net3:
+    type: OS::Neutron::Net
+    properties:
+      name: net3
+
+  subnet3:
+    type: OS::Neutron::Subnet
+    properties:
+      name: subnet3
+      network_id: { get_resource: net3 }
+      cidr: 192.168.3.0/24
+
+  r12:
+    type: OS::Neutron::Router
+    properties:
+      name: r12
+
+  r23:
+    type: OS::Neutron::Router
+    properties:
+      name: r23
+
+  r12i1:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: r12 }
+      subnet_id: { get_resource: subnet1 }
+
+  r12i2:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: r12 }
+      subnet_id: { get_resource: subnet2 }
+
+  r23i3:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: r23 }
+      subnet_id: { get_resource: subnet3 }
+
+  er1:
+    type: OS::Neutron::ExtraRoute
+    properties:
+       router_id: { get_resource: r23 }
+       destination: 192.168.1.0/24
+       nexthop: 192.168.2.1
+
+  er3:
+    type: OS::Neutron::ExtraRoute
+    properties:
+       router_id: { get_resource: r12 }
+       destination: 192.168.3.0/24
+       nexthop: 192.168.2.20
+
+  p2r23:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: net2 }
+      fixed_ips: [{ip_address: 192.168.2.20, subnet: { get_resource: subnet2}}]
+
+  r23i2:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: r23 }
+      port_id: { get_resource: p2r23 }
+
+  vm1:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      networks:
+        - network: { get_resource: net1 }
+
+  vm2:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      networks:
+        - network: { get_resource: net2 }
+
+  vm3:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      networks:
+        - network: { get_resource: net3 }
