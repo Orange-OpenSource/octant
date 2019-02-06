@@ -82,15 +82,27 @@ class TestDatalogTheory(base.TestCase):
 
     def test_z3_to_array(self):
         s = z3.BitVecSort(4)
-        x = z3.Const('x', s)
-        e0 = x == 3
-        e1 = z3.And(x == 3, x == 2, x == 1)
-        e2 = z3.Or(e1, z3.And(x == 13, x == 12, x == 11))
-        e3 = z3.Or(x == 6, x == 5, x == 4)
-        self.assertEqual([[3]], theory.z3_to_array(e0))
-        self.assertEqual([[3, 2, 1]], theory.z3_to_array(e1))
-        self.assertEqual([[3, 2, 1], [13, 12, 11]], theory.z3_to_array(e2))
-        self.assertEqual([[6], [5], [4]], theory.z3_to_array(e3))
+
+        def bv(x):
+            return z3.BitVecVal(x, s)
+
+        x = z3.Var(0, s)
+        y = z3.Var(1, s)
+        z = z3.Var(2, s)
+
+        def project(grid):
+            return [[x.as_long() for x in row] for row in grid]
+
+        e0 = x == bv(3)
+        e1 = z3.And(x == bv(3), y == bv(2), z == bv(1))
+        e2 = z3.Or(e1, z3.And(x == bv(13), y == bv(12), z == bv(11)))
+        e3 = z3.Or(x == bv(6), y == bv(5), z == bv(4))
+        self.assertEqual([[3]], project(theory.z3_to_array(e0)))
+        self.assertEqual([[3, 2, 1]], project(theory.z3_to_array(e1)))
+        self.assertEqual(
+            [[3, 2, 1], [13, 12, 11]],
+            project(theory.z3_to_array(e2)))
+        self.assertEqual([[6], [5], [4]], project(theory.z3_to_array(e3)))
         self.assertIs(
             True,
             theory.z3_to_array(z3.simplify(z3.And(True, True))))

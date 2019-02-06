@@ -17,14 +17,14 @@
 from __future__ import print_function
 
 import csv
+import itertools
 import logging
-import sys
-import textwrap
-import time
-
 import prettytable
 import six
 from six import moves
+import sys
+import textwrap
+import time
 import z3
 
 from oslo_config import cfg
@@ -42,16 +42,75 @@ from octant import source_skydive
 from octant import z3_comparison as z3c
 
 
+class Masked(tuple):
+    def __new__(self, x, y):
+        return tuple.__new__(Masked, (x, y))
+
+    def __repr__(self):
+        return "Masked(%s, %s)" % self
+
+    def __str__(self):
+        return "%s/%s" % self
+
+
 def z3_to_array(expr):
     """Compiles back a Z3 result to a matrix of values"""
+
+    def fuse(list):
+        if len(list) == 1:
+            (_, val, mask) = list[0]
+            if mask is None:
+                return val
+            else:
+                return Masked(val, mask)
+        else:
+            sort = list[0][1].sort()
+
+            def compute(x, y):
+                return (z3.simplify(x[0] | y[1]), z3.simplify(x[1] | y[2]))
+
+            zero = z3.BitVecVal(0, sort)
+            return Masked(*moves.reduce(compute, list, (zero, zero)))
+
+    def fuse_doc(l):
+        """Takes a list of triples and translates back to values/pairs"""
+        return [
+            fuse(list(grp))
+            for _, grp in itertools.groupby(l, key=lambda t: t[0])]
+
+    def extract_equal(eq):
+        """Transform equals in a triple: var index, value, mask"""
+
+        if isinstance(eq.children()[0], z3.BitVecNumRef):
+            rhs = eq.children()[0]
+            lhs = eq.children()[1]
+        else:
+            rhs = eq.children()[1]
+            lhs = eq.children()[0]
+        if z3.is_var(lhs):
+            return (z3.get_var_index(lhs), rhs, None)
+        else:
+            kind = lhs.decl().kind()
+            if kind == z3.Z3_OP_EXTRACT:
+                [high, low] = lhs.params()
+                sort = rhs.sort()
+                val = rhs.as_long()
+                mask = (1 << (high + 1)) - (1 << low)
+                return (
+                    z3.get_var_index(lhs.children()[0]),
+                    z3.BitVecVal(val, sort),
+                    z3.BitVecVal(mask, sort))
+            else:
+                raise compiler.Z3NotWellFormed(
+                    "Bad lhs for equal  {}".format(eq))
 
     def extract(item):
         """Extract a row"""
         kind = item.decl().kind()
         if kind == z3.Z3_OP_AND:
-            return [x.children()[1] for x in item.children()]
+            return fuse_doc([extract_equal(x) for x in item.children()])
         elif kind == z3.Z3_OP_EQ:
-            return [item.children()[1]]
+            return fuse_doc([extract_equal(item)])
         else:
             raise compiler.Z3NotWellFormed(
                 "Bad result  {}: {}".format(expr, kind))
@@ -59,9 +118,9 @@ def z3_to_array(expr):
     if kind == z3.Z3_OP_OR:
         return [extract(item) for item in expr.children()]
     elif kind == z3.Z3_OP_AND:
-        return [[item.children()[1] for item in expr.children()]]
+        return [fuse_doc([extract_equal(item) for item in expr.children()])]
     elif kind == z3.Z3_OP_EQ:
-        return [[expr.children()[1]]]
+        return [fuse_doc([extract_equal(expr)])]
     elif kind == z3.Z3_OP_FALSE:
         return False
     elif kind == z3.Z3_OP_TRUE:
@@ -158,7 +217,7 @@ class Z3Theory(object):
             if full_id in variables:
                 return variables[full_id]
             expr_type = self.datasource.types[expr.type].type()
-            var = z3.Const(expr.id + '-' + str(expr.rule_id), expr_type)
+            var = z3.Const(expr.id, expr_type)
             variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
@@ -234,11 +293,14 @@ class Z3Theory(object):
         variables = [
             arg.id for arg in atom.args if isinstance(arg, ast.Variable)
         ]
-        answer = z3_to_array(self.context.get_answer())
+        raw_answer = self.context.get_answer()
+        logging.getLogger().debug("Raw answer:\n%s", raw_answer)
+        answer = z3_to_array(raw_answer)
         if isinstance(answer, bool):
             return variables, answer
         return variables, [
-            [type_x.to_os(x)
+            [Masked(type_x.to_os(x[0]), type_x.to_os(x[1]))
+             if isinstance(x, Masked) else type_x.to_os(x)
              for type_x, x in moves.zip(types, row)]
             for row in answer]
 
