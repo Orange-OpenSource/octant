@@ -1,69 +1,9 @@
 ##################### UTILITIES ##########################
 
-known_mask(255.255.255.255).
-known_mask(255.255.255.254).
-known_mask(255.255.255.252).
-known_mask(255.255.255.248).
-known_mask(255.255.255.240).
-known_mask(255.255.255.224).
-known_mask(255.255.255.192).
-known_mask(255.255.255.128).
-
-known_mask(255.255.255.0).
-known_mask(255.255.254.0).
-known_mask(255.255.252.0).
-known_mask(255.255.248.0).
-known_mask(255.255.240.0).
-known_mask(255.255.224.0).
-known_mask(255.255.192.0).
-known_mask(255.255.128.0).
-
-known_mask(255.255.0.0).
-known_mask(255.254.0.0).
-known_mask(255.252.0.0).
-known_mask(255.248.0.0).
-known_mask(255.240.0.0).
-known_mask(255.224.0.0).
-known_mask(255.192.0.0).
-known_mask(255.128.0.0).
-
-known_mask(255.0.0.0).
-known_mask(254.0.0.0).
-known_mask(252.0.0.0).
-known_mask(248.0.0.0).
-known_mask(240.0.0.0).
-known_mask(224.0.0.0).
-known_mask(192.0.0.0).
-known_mask(128.0.0.0).
-
-known_mask(0.0.0.0).
-
-# A known IP is an IP attached to something in the system.
-known_ip(IP) :- port_ip(ip=IP).
-
-# A known port is harder to define. We can use the fact that it appears in a
-# security rule but we need some "arbitrary" ports too.
-known_port(80).
-known_port(22).
-known_port(443).
-known_port(8000).
-known_port(1000).
-known_port(X) :- rule(port_range_min=X).
-
-# For protocols list a few known protocols and augment it with what is in the
-# tables
-known_protocol("tcp").
-known_protocol("udp").
-known_protocol("icmp").
-known_protocol(X) :- rule(protocol=X).
-
 ############################### CORE ##############################
 # DN1 can connect to DN2 over port number PN for protocole PRO.
 # A route exists and security groups allow the connection.
-connect(DN1, DN2, PN1,PN2, PRO) :-
-    known_port(PN1),
-    known_port(PN2),
-    known_protocol(PRO),
+connect(DN1, DN2, PN2, PRO) :-
     server(name=DN1, id=D1),
     server(name=DN2, id=D2),
     attached_ip(SN, D1, P1, IP1),
@@ -139,23 +79,18 @@ gateway(SN, P, R) :-
 # true if there is a route for ip IP on router R that is more specific
 # than the mask M provided.
 better_match_router(R, M, IP) :-
-    known_ip(IP), # this is a kludge to avoid Z3 building large tables
-    known_mask(M),
     router_route(dest_prefix=RP, dest_mask=RM, router_id=R),
     RP = IP & RM,
     RM > M.
 
 # true if there is a route for ip IP on subnet SN used for default gateway.
 match_subnet(SN, IP) :-
-    known_ip(IP), # this is a kludge to avoid Z3 building large tables.
     subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
     RP = IP & RM.
 
 # true if there is a route for ip IP on subnet SN that is more specific
 # than the mask M provided.
 better_match_subnet(SN, M, IP) :-
-    known_ip(IP), # this is a kludge to avoid Z3 building large tables.
-    known_mask(M),
     subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
     RP = IP & RM,
     RM > M.
