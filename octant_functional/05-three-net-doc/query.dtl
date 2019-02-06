@@ -1,2 +1,2 @@
-connect("st1-vm1-bmqldochvmno", X, 1000, 80, "tcp")
+connect("st1-vm1-bmqldochvmno", X, 80, "tcp")
 
