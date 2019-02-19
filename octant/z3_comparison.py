@@ -78,7 +78,7 @@ def z3_inf(v, c):
     s = c.size()
     f = inferior_to.get((n, s), None)
     if f is None:
-        f = z3.Function("_inf_%d_%d" % (n, s), c.sort(), z3.BoolSort())
+        f = z3.Function("_inf_%x_%d" % (n, s), c.sort(), z3.BoolSort())
         inferior_to[(n, s)] = f
     return f(v)
 

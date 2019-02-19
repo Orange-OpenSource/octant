@@ -26,13 +26,12 @@ import mock
 import six
 import sys
 
-import z3
-
 from octant import datalog_compiler as compiler
 from octant import datalog_parser as parser
 from octant import datalog_theory as theory
 from octant import datalog_typechecker as typechecker
 from octant.tests import base
+from octant import z3_result as z3r
 
 
 def pp(text):
@@ -80,43 +79,15 @@ def standard_cfg(mock_cfg):
 class TestDatalogTheory(base.TestCase):
     """Test datalog_theory"""
 
-    def test_z3_to_array(self):
-        s = z3.BitVecSort(4)
-        x = z3.Const('x', s)
-        e0 = x == 3
-        e1 = z3.And(x == 3, x == 2, x == 1)
-        e2 = z3.Or(e1, z3.And(x == 13, x == 12, x == 11))
-        e3 = z3.Or(x == 6, x == 5, x == 4)
-        self.assertEqual([[3]], theory.z3_to_array(e0))
-        self.assertEqual([[3, 2, 1]], theory.z3_to_array(e1))
-        self.assertEqual([[3, 2, 1], [13, 12, 11]], theory.z3_to_array(e2))
-        self.assertEqual([[6], [5], [4]], theory.z3_to_array(e3))
-        self.assertIs(
-            True,
-            theory.z3_to_array(z3.simplify(z3.And(True, True))))
-        self.assertIs(
-            False,
-            theory.z3_to_array(z3.simplify(z3.And(True, False))))
-
-    def test_z3_to_array_fails(self):
-        s = z3.BitVecSort(4)
-        x = z3.Const('x', s)
-        self.assertRaises(
-            compiler.Z3NotWellFormed,
-            lambda: theory.z3_to_array(x))
-        self.assertRaises(
-            compiler.Z3NotWellFormed,
-            lambda: theory.z3_to_array(z3.Or(x > 2, x < 1)))
-
     @mock.patch("octant.source_openstack.register")
     @mock.patch("octant.source_skydive.register")
     def test_build_theory_simple(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
         r = theo.query("p(X)")
-        self.assertEqual((['X'], [[3]]), r)
+        self.assertEqual((['X'], [z3r.Cube({0: 3})]), r)
         r = theo.query("q(X)")
-        self.assertEqual((['X'], [[2], [3]]), r)
+        self.assertEqual((['X'], [z3r.Cube({0: 2}), z3r.Cube({0: 3})]), r)
 
     @mock.patch("octant.source_openstack.register")
     @mock.patch("octant.source_skydive.register")
@@ -146,20 +117,16 @@ class TestDatalogTheory(base.TestCase):
     def test_with_source(self, src1):
         theo = theory.Z3Theory(pp("p(X) :- q(a=X)."))
         theo.build_theory()
-        self.assertEqual((['X'], [[421], [567]]), theo.query("p(X)"))
-
-    def test_print_csv(self):
-        with capture_stdout() as out:
-            theory.print_csv(["X", "Y"], [[2, 3], [4, 5]])
-        self.assertEqual('X,Y\r\n2,3\r\n4,5\r\n\n', out.getvalue())
-        with capture_stdout() as out:
-            theory.print_csv([], True)
-        self.assertIs(True, "True" in out.getvalue())
+        self.assertEqual(
+            (['X'], [z3r.Cube({0: 421}), z3r.Cube({0: 567})]),
+            theo.query("p(X)"))
 
     def test_print_result_pretty(self):
         with capture_stdout() as out:
             theory.print_result(
-                "query", ["VarX", "Y"], [[2134, 3], [4, 572]], 3.5, True)
+                "query", ["VarX", "Y"],
+                [z3r.Cube({0: 2134, 1: 3}), z3r.Cube({0: 4, 1: 572})],
+                3.5, True)
         result = out.getvalue()
         self.assertIs(True, "2134" in result)
         self.assertIs(True, "572" in result)

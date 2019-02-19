@@ -16,15 +16,12 @@
 
 from __future__ import print_function
 
-import csv
 import logging
+import six
+from six import moves
 import sys
 import textwrap
 import time
-
-import prettytable
-import six
-from six import moves
 import z3
 
 from oslo_config import cfg
@@ -40,34 +37,7 @@ from octant import options
 from octant import source_openstack
 from octant import source_skydive
 from octant import z3_comparison as z3c
-
-
-def z3_to_array(expr):
-    """Compiles back a Z3 result to a matrix of values"""
-
-    def extract(item):
-        """Extract a row"""
-        kind = item.decl().kind()
-        if kind == z3.Z3_OP_AND:
-            return [x.children()[1] for x in item.children()]
-        elif kind == z3.Z3_OP_EQ:
-            return [item.children()[1]]
-        else:
-            raise compiler.Z3NotWellFormed(
-                "Bad result  {}: {}".format(expr, kind))
-    kind = expr.decl().kind()
-    if kind == z3.Z3_OP_OR:
-        return [extract(item) for item in expr.children()]
-    elif kind == z3.Z3_OP_AND:
-        return [[item.children()[1] for item in expr.children()]]
-    elif kind == z3.Z3_OP_EQ:
-        return [[expr.children()[1]]]
-    elif kind == z3.Z3_OP_FALSE:
-        return False
-    elif kind == z3.Z3_OP_TRUE:
-        return True
-    else:
-        raise compiler.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
+from octant import z3_result as z3r
 
 
 class Z3Theory(object):
@@ -158,7 +128,7 @@ class Z3Theory(object):
             if full_id in variables:
                 return variables[full_id]
             expr_type = self.datasource.types[expr.type].type()
-            var = z3.Const(expr.id + '-' + str(expr.rule_id), expr_type)
+            var = z3.Const(expr.id, expr_type)
             variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
@@ -204,11 +174,7 @@ class Z3Theory(object):
             else:
                 self.build_rule(rule, {})
         z3c.register(self.context)
-        logger = logging.getLogger()
-        if logger.getEffectiveLevel() <= logging.DEBUG:
-            logger.debug("Compiled rules:")
-            for rule in self.context.get_rules():
-                logger.debug("%s", rule)
+        logging.getLogger().debug("Compiled rules:\n%s", self.context)
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""
@@ -234,25 +200,12 @@ class Z3Theory(object):
         variables = [
             arg.id for arg in atom.args if isinstance(arg, ast.Variable)
         ]
-        answer = z3_to_array(self.context.get_answer())
+        raw_answer = self.context.get_answer()
+        logging.getLogger().debug("Raw answer:\n%s", raw_answer)
+        answer = z3r.z3_to_array(raw_answer, types)
         if isinstance(answer, bool):
             return variables, answer
-        return variables, [
-            [type_x.to_os(x)
-             for type_x, x in moves.zip(types, row)]
-            for row in answer]
-
-
-def print_csv(variables, answers):
-    """Print the result of a query in excel csv format"""
-    if isinstance(answers, list):
-        csvwriter = csv.writer(sys.stdout)
-        csvwriter.writerow(variables)
-        for row in answers:
-            csvwriter.writerow(row)
-    else:
-        print(str(answers))
-    print()
+        return variables, answer
 
 
 def print_result(query, variables, answers, time_used, show_pretty):
@@ -264,10 +217,7 @@ def print_result(query, variables, answers, time_used, show_pretty):
     print("-" * 80)
     if show_pretty:
         if isinstance(answers, list):
-            pretty = prettytable.PrettyTable(variables)
-            for row in answers:
-                pretty.add_row(row)
-            print(pretty.get_string())
+            z3r.print_pretty(variables, answers)
         else:
             print('   ' + str(answers))
     else:
@@ -311,7 +261,7 @@ def main():
             start = time.clock()
             variables, answers = theory.query(query)
             if csv_out:
-                print_csv(variables, answers)
+                z3r.print_csv(variables, answers)
             else:
                 print_result(
                     query, variables, answers,
