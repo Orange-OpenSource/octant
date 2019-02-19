@@ -16,10 +16,7 @@
 
 from __future__ import print_function
 
-import csv
-import itertools
 import logging
-import prettytable
 import six
 from six import moves
 import sys
@@ -40,93 +37,7 @@ from octant import options
 from octant import source_openstack
 from octant import source_skydive
 from octant import z3_comparison as z3c
-
-
-class Masked(tuple):
-    def __new__(self, x, y):
-        return tuple.__new__(Masked, (x, y))
-
-    def __repr__(self):
-        return "Masked(%s, %s)" % self
-
-    def __str__(self):
-        return "%s/%s" % self
-
-
-def z3_to_array(expr):
-    """Compiles back a Z3 result to a matrix of values"""
-
-    def fuse(list):
-        if len(list) == 1:
-            (_, val, mask) = list[0]
-            if mask is None:
-                return val
-            else:
-                return Masked(val, mask)
-        else:
-            sort = list[0][1].sort()
-
-            def compute(x, y):
-                return (z3.simplify(x[0] | y[1]), z3.simplify(x[1] | y[2]))
-
-            zero = z3.BitVecVal(0, sort)
-            return Masked(*moves.reduce(compute, list, (zero, zero)))
-
-    def fuse_doc(l):
-        """Takes a list of triples and translates back to values/pairs"""
-        return [
-            fuse(list(grp))
-            for _, grp in itertools.groupby(l, key=lambda t: t[0])]
-
-    def extract_equal(eq):
-        """Transform equals in a triple: var index, value, mask"""
-
-        if isinstance(eq.children()[0], z3.BitVecNumRef):
-            rhs = eq.children()[0]
-            lhs = eq.children()[1]
-        else:
-            rhs = eq.children()[1]
-            lhs = eq.children()[0]
-        if z3.is_var(lhs):
-            return (z3.get_var_index(lhs), rhs, None)
-        else:
-            kind = lhs.decl().kind()
-            if kind == z3.Z3_OP_EXTRACT:
-                [high, low] = lhs.params()
-                sort = rhs.sort()
-                val = rhs.as_long()
-                mask = (1 << (high + 1)) - (1 << low)
-                return (
-                    z3.get_var_index(lhs.children()[0]),
-                    z3.BitVecVal(val, sort),
-                    z3.BitVecVal(mask, sort))
-            else:
-                raise compiler.Z3NotWellFormed(
-                    "Bad lhs for equal  {}".format(eq))
-
-    def extract(item):
-        """Extract a row"""
-        kind = item.decl().kind()
-        if kind == z3.Z3_OP_AND:
-            return fuse_doc([extract_equal(x) for x in item.children()])
-        elif kind == z3.Z3_OP_EQ:
-            return fuse_doc([extract_equal(item)])
-        else:
-            raise compiler.Z3NotWellFormed(
-                "Bad result  {}: {}".format(expr, kind))
-    kind = expr.decl().kind()
-    if kind == z3.Z3_OP_OR:
-        return [extract(item) for item in expr.children()]
-    elif kind == z3.Z3_OP_AND:
-        return [fuse_doc([extract_equal(item) for item in expr.children()])]
-    elif kind == z3.Z3_OP_EQ:
-        return [fuse_doc([extract_equal(expr)])]
-    elif kind == z3.Z3_OP_FALSE:
-        return False
-    elif kind == z3.Z3_OP_TRUE:
-        return True
-    else:
-        raise compiler.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
+from octant import z3_result as z3r
 
 
 class Z3Theory(object):
@@ -263,11 +174,7 @@ class Z3Theory(object):
             else:
                 self.build_rule(rule, {})
         z3c.register(self.context)
-        logger = logging.getLogger()
-        if logger.getEffectiveLevel() <= logging.DEBUG:
-            logger.debug("Compiled rules:")
-            for rule in self.context.get_rules():
-                logger.debug("%s", rule)
+        logging.getLogger().debug("Compiled rules:\n%s", self.context)
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""
@@ -295,26 +202,10 @@ class Z3Theory(object):
         ]
         raw_answer = self.context.get_answer()
         logging.getLogger().debug("Raw answer:\n%s", raw_answer)
-        answer = z3_to_array(raw_answer)
+        answer = z3r.z3_to_array(raw_answer, types)
         if isinstance(answer, bool):
             return variables, answer
-        return variables, [
-            [Masked(type_x.to_os(x[0]), type_x.to_os(x[1]))
-             if isinstance(x, Masked) else type_x.to_os(x)
-             for type_x, x in moves.zip(types, row)]
-            for row in answer]
-
-
-def print_csv(variables, answers):
-    """Print the result of a query in excel csv format"""
-    if isinstance(answers, list):
-        csvwriter = csv.writer(sys.stdout)
-        csvwriter.writerow(variables)
-        for row in answers:
-            csvwriter.writerow(row)
-    else:
-        print(str(answers))
-    print()
+        return variables, answer
 
 
 def print_result(query, variables, answers, time_used, show_pretty):
@@ -326,10 +217,7 @@ def print_result(query, variables, answers, time_used, show_pretty):
     print("-" * 80)
     if show_pretty:
         if isinstance(answers, list):
-            pretty = prettytable.PrettyTable(variables)
-            for row in answers:
-                pretty.add_row(row)
-            print(pretty.get_string())
+            z3r.print_pretty(variables, answers)
         else:
             print('   ' + str(answers))
     else:
@@ -373,7 +261,7 @@ def main():
             start = time.clock()
             variables, answers = theory.query(query)
             if csv_out:
-                print_csv(variables, answers)
+                z3r.print_csv(variables, answers)
             else:
                 print_result(
                     query, variables, answers,
