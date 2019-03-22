@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
 import itertools
 import logging
 import six
@@ -22,75 +21,122 @@ import six
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 
-# Documentation of namedtuple will only work for Sphynx
 
-UFOcc = collections.namedtuple('UFOcc', ['rule_id', 'atom'])
-"""Occurence in rule bodies. Used in UFGround to keep track of new instances.
+class UFBot:
+    """Bottom type corresponds to no information at all"""
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
 
-   .. py:attribute:: rule_id
+    def __hash__(self):
+        return 1
 
-      Identifier of the rule whose body contains the occurrence
 
-   .. py:attribute:: atom
+class UFTop:
+    """Top type means any value"""
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
 
-      The index of the atom in the body
-"""
+    def __hash__(self):
+        return 2
 
-UFBot = collections.namedtuple('UFBot', [])
-"""Bottom type corresponds to no information at all"""
 
-UFTop = collections.namedtuple('UFTop', [])
-"""Top type means any value"""
+class UFGround:
+    """Coerced to be a ground value of parameter at a given position
 
-UFGround = collections.namedtuple('UFGround', ['pos', 'table', 'occurrence'])
-"""Coerced to be a ground value of parameter at a given position
+    .. py:attribute:: pos:
 
-   .. py:attribute:: pos:
+        position of the argument in the table (integer starting at 0)
 
-      position of the argument in the table (integer starting at 0)
+    .. py:attribute:: table:
 
-   .. py:attribute:: table:
+        table defining the ground term (str)
 
-      table defining the ground term (str)
+    .. py:attribute:: occurrence:
 
-   .. py:attribute:: occurrence:
+        An occurrence list defining in a unique way the instance
+        of the ground term in use. (linked list represented as pair or None.
+        Elements are pairs of a rule identifier (int) and a position of the
+        atom in the body (int))
+    """
 
-      An occurrence list defining in a unique way the instance
-      of the ground term in use. (linked list represented as pair or None.
-      Elements are pairs of a rule identifier (int) and a position of the atom
-      in the body (int))
-"""
+    def __init__(self, pos, table, occurrence):
+        self.pos = pos
+        self.table = table
+        self.occurrence = occurrence
 
-UFConj = collections.namedtuple('UFConj', ['args'])
-"""Conjunctions of types
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and other.pos == self.pos and
+            other.table == self.table and other.occurrence == self.occurrence)
 
-It represent a conjunct of constraints on the origin. It is usually simplified
-at some point as one of the origins.
-"""
+    def __hash__(self):
+        return hash((self.pos, self.table, self.occurrence))
 
-UFDisj = collections.namedtuple('UFDisj', ['args'])
-"""Disjunctions of types
 
-The values of the element may come from either origins.
-"""
+class UFConj:
+    """Conjunctions of types
 
-UnfoldPlan = collections.namedtuple(
-    'UnfoldPlan',
-    ['plan', 'tables', 'contents'])
-"""Result of unfolding as a plan
+    It represent a conjunct of constraints on the origin. It is usually
+    simplified at some point as one of the origins.
+    """
+    def __init__(self, args):
+        self.args = args
 
-.. py:attribute:: plan
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.args == self.args
 
-    the plan to follow for unfolding
+    def __hash__(self):
+        return hash(self.args)
 
-.. py: attribute:: tables
-    a dictionary with keys the tables to retrieve and values the list of
-    argument positions to retrieve
 
-.. py: attribute:: contents
-    a dictionnary from table to retrieve to list of actual content tuples
-    as specified by the tables field.
-"""
+class UFDisj:
+    """Disjunctions of types
+
+    The values of the element may come from either origins.
+    """
+
+    def __init__(self, args):
+        self.args = args
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.args == self.args
+
+    def __hash__(self):
+        return hash(self.args)
+
+
+class UnfoldPlan:
+    """Result of unfolding as a plan
+
+    .. py:attribute:: plan
+        the full plan to follow for unfolding. For each rule that needs
+        simplification the plan associate to the id of the rule, a list of
+        simplification actions. An action is a list of elementary actions
+        taking place at the same time. An elementary action specifies a table
+        and a column in that table and the variable that will receive the
+        content of this table.
+
+    .. py: attribute:: tables
+        a dictionary with keys the tables to retrieve and values the list of
+        column positions to retrieve
+
+    .. py: attribute:: contents
+        a dictionnary from table to retrieve to list of actual content tuples
+        the columns given are as specified by the tables field.
+    """
+    def __init__(self, plan, tables, contents):
+        self.plan = plan
+        self.contents = contents
+        self.tables = tables
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and other.plan == self.plan and
+            other.tables == self.tables and other.contents == self.contents)
+
+    def __hash__(self):
+        return hash((self.plan, self.tables, self.contents))
+
 
 top = UFTop()
 bot = UFBot()
@@ -109,6 +155,19 @@ def simplify_to_ground_types(t):
     return []
 
 
+def len_occ(occ):
+    """Compute length of the occurrence pseudo list
+
+    We use pairs and not regular lists because we want a hashable
+    non mutable element.
+    """
+    count = 0
+    while isinstance(occ, tuple) and len(occ) == 2:
+        count = count + 1
+        occ = occ[1]
+    return count
+
+
 def weight_type(t):
     """Weight function for types.
 
@@ -116,7 +175,7 @@ def weight_type(t):
     The smaller, the better. Returns a pair for lexicographic ordering.
     """
     if is_ground(t):
-        return 0, len(t.occurrence)
+        return 0, len_occ(t.occurrence)
     if isinstance(t, (UFDisj, UFConj)):
         return 1, len(t.args)
     else:
@@ -156,6 +215,8 @@ def reduce_disj(l):
         for x in (e.args if isinstance(e, UFDisj) else (e,))}
     if len(flat) == 1:
         return flat.pop()
+    print("FLAT IS " + str(flat))
+    print(top in flat)
     disj = top if top in flat else UFDisj(tuple(flat))
     return disj
 
@@ -168,7 +229,8 @@ def reduce_conj(l):
     types. Otherwise only keep the best of the conjunct and throw away the
     others.
 
-    :param l: the list of types that could build the conjunct
+    :param l: the list of types that could build the conjunct. It
+        must be sorted.
     :returns: a conjunct with more than one type or what was considered as the
         best type
     """
