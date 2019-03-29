@@ -143,16 +143,41 @@ bot = UFBot()
 
 
 def is_ground(t):
+    "Return true is object is a ground object"
     return isinstance(t, UFGround)
+
+
+def is_disj(t):
+    "Return true is object is a disjonction"
+    return isinstance(t, UFDisj)
+
+
+def occurrence(t):
+    """Computes an occurrence for the whole types
+
+    Occcurrence shouldbe seen as unique ID"""
+    if is_ground(t):
+        return t.occurrence
+    if is_disj(t):
+        return tuple(occurrence(a) for a in t.args)
+    return None
 
 
 def simplify_to_ground_types(t):
     """Gives back simple ground or disjunction"""
-    if is_ground(t) or isinstance(t, UFDisj):
+    if is_ground(t) or is_disj(t):
         return [t]
     if isinstance(t, UFConj):
         return [g for a in t.args for g in simplify_to_ground_types(a)]
     return []
+
+
+def contains_mark(occ, mark):
+    if isinstance(occ, tuple) and len(occ) == 2:
+        if mark == occ[0]:
+            return True
+        return contains_mark(occ[1], mark)
+    return False
 
 
 def len_occ(occ):
@@ -192,7 +217,7 @@ def wrap_type(typ, mark):
     """
     if is_ground(typ):
         return UFGround(typ.pos, typ.table, (mark, typ.occurrence))
-    if isinstance(typ, UFDisj):
+    if is_disj(typ):
         return UFDisj(tuple(wrap_type(t, mark) for t in typ.args))
     if isinstance(typ, UFConj):
         return UFConj(tuple(wrap_type(t, mark) for t in typ.args))
@@ -212,11 +237,9 @@ def reduce_disj(l):
     flat = {
         x
         for e in l
-        for x in (e.args if isinstance(e, UFDisj) else (e,))}
+        for x in (e.args if is_disj(e) else (e,))}
     if len(flat) == 1:
         return flat.pop()
-    print("FLAT IS " + str(flat))
-    print(top in flat)
     disj = top if top in flat else UFDisj(tuple(flat))
     return disj
 
@@ -279,12 +302,14 @@ def environ_from_plan(unfold_plan):
         return result
 
     def expand(group):
-        table = group[0][0]
-        index_map = unfold_plan.tables[table]
-        contents = unfold_plan.contents[table]
+        (spec, vars) = group
         return [
-            {v: record[index_map.index(pos)] for (_, pos, v) in group}
-            for record in contents
+            # pylint: disable=unsubscriptable-object
+            {vars[i]: record[index_map.index(pos)]
+             for (i, pos) in enumerate(positions)}
+            for (table, positions) in spec
+            for index_map in (unfold_plan.tables[table],)
+            for record in unfold_plan.contents[table]
         ]
     env = {
         rule_id: merge_env(itertools.product(*(
@@ -295,6 +320,11 @@ def environ_from_plan(unfold_plan):
     }
     logging.getLogger().debug("Environment for unfolding:\n%s" % env)
     return env
+
+
+def d(t):
+    print("%s - %s" % (type(t), t))
+    return t
 
 
 class Unfolding(object):
@@ -454,9 +484,7 @@ class Unfolding(object):
         problems = get_to_solve(rule)
         if problems == []:
             return None
-        debug("*" * 60)
         debug("Rule to unfold: %s", rule)
-        debug("*" * 60)
         plan = []
         while problems != []:
             debug("Current problem\n:%s", problems)
@@ -469,11 +497,16 @@ class Unfolding(object):
             ]
             simple_types = [p for p in candidate_types if is_ground(p[0])]
             debug("Simple types for problem\n:%s", simple_types)
+            is_simple = True
             if simple_types == []:
-                raise Exception('Cannot handle non simple yet.')
+                is_simple = False
+                simple_types = [p for p in candidate_types if is_disj(p[0])]
+                if simple_types == []:
+                    debug("Non simple types %s", candidate_types)
+                    raise Exception('Cannot handle non simple yet.')
 
             def by_occ(p):
-                return p[0].occurrence
+                return occurrence(p[0])
 
             simple_types.sort(key=by_occ)
             simple_types_by_occ = [
@@ -482,8 +515,15 @@ class Unfolding(object):
             simple_types_by_occ.sort(reverse=True, key=lambda p: len(p[1]))
             debug("Sorted simple types:\n%s", simple_types_by_occ)
             (_, solved) = simple_types_by_occ[0]
-            plan.append([(t.table, t.pos, v) for (t, v) in solved])
-            solved_vars = [v[1] for v in solved]
+            solved_vars = [v for (_, v) in solved]
+            if is_simple:
+                tspec = ((solved[0][0].table, [t.pos for (t, v) in solved]), )
+            else:
+                skeleton = solved[0][0].args
+                tspec = tuple(
+                    (a.table, [t.args[i].pos for (t, _) in solved])
+                    for (i, a) in enumerate(skeleton))
+            plan.append((tspec, solved_vars))
             debug("Solved variables:\n%s", solved_vars)
             # We expect less problems to solve and at least simpler ones.
             problems = [
@@ -524,8 +564,9 @@ class Unfolding(object):
         table_accesses = {
             (t, p)
             for _, plan in plans
-            for group in plan
-            for (t, p, _) in group
+            for (group, _) in plan
+            for (t, l) in group
+            for p in l
         }
         tables = {
             table: [pos for _, pos in group]

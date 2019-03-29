@@ -108,8 +108,9 @@ class TestUnfolding(base.TestCase):
     def test_environ_from_plan(self):
         plan = unfolding.UnfoldPlan(
             plan=[
-                (1, [[('u', 2, 'x')]]),
-                (3, [[('t', 0, 'x'), ('t', 3, 'y')], [('u', 2, 'z')]])],
+                (1, [((('u', [2]),), ['x'])]),
+                (3, [((('t', [0, 3]),), ['x', 'y']),
+                     ((('u', [2]),), ['z'])])],
             tables={'t': [0, 3], 'u': [2]},
             contents={
                 't': [[0, 1], [2, 3]],
