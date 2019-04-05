@@ -16,9 +16,29 @@
 
 """Tests for datalog_unfolding module"""
 
+from octant import datalog_ast as ast
 from octant import datalog_parser as parser
 from octant import datalog_unfolding as unfolding
 from octant.tests import base
+
+
+prog0 = """
+    t(X, 1) :- p(X).
+    t(X,2) :- p(X).
+    s(X, 1) :- p(X).
+    s(X, Y) :- q(X,Y).
+    """
+
+prog1 = """
+    t(X, Y) :- s(X1, X2, Y2), p(X1), q(X2, Y2), r(X2),
+               r(Y2), X1 = X & X2, Y2 = Y & 15.
+    """
+
+prog2 = """
+    t(X, Y) :- p(X1), s(X2), X1 = X & X2.
+    s(X) :- p(X).
+    s(X) :- q(X).
+    """
 
 
 class TestUnfolding(base.TestCase):
@@ -128,3 +148,98 @@ class TestUnfolding(base.TestCase):
             return {tuple(sorted(record.items())) for record in list}
         self.assertEqual(expected3, normalize(result[3]))
         self.assertEqual(expected1, normalize(result[1]))
+
+    def test_unfolding(self):
+        prog = "t(X) :- p(X,Y), X = Y & 1.\ns(X) :- t(X), 2 = X & 2."
+        rules = parser.wrapped_parse(prog)
+        extensible = {"p": ["int", "int"]}
+        unfold = unfolding.Unfolding(rules, extensible, (lambda t: t))
+        self.assertEqual((2, True), unfold.tables["p"])
+        self.assertEqual((1, False), unfold.tables["t"])
+
+    def test_partially_ground(self):
+        rules = parser.wrapped_parse(prog0)
+        unfold = unfolding.Unfolding(rules, {}, (lambda t: t))
+        result = unfold.get_partially_ground_preds()
+        self.assertEqual({'s': set(), 't': set([1])}, result)
+
+    def test_initialize_types_and_get_atom_types(self):
+        rules = parser.wrapped_parse(prog0)
+        atom_t = rules[0].head
+        atom_z = ast.Atom('z', [])
+        external = {'q': ['int', 'int'], 'p': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.initialize_types()
+        self.assertEqual(
+            [unfolding.UFBot(), unfolding.UFGround(1, "t", None)],
+            unfold.table_types['t'])
+        self.assertEqual(
+            unfolding.UFBot(),
+            unfold.get_atom_type(atom_t, 0))
+        self.assertEqual(None, unfold.get_atom_type(atom_t, 3))
+        self.assertEqual(None, unfold.get_atom_type(atom_z, 0))
+
+    def test_type_variables(self):
+        rules = parser.wrapped_parse(prog0)
+        vars = [rules[rid].head.args[pos].full_id()
+                for (rid, pos) in [(1, 0), (3, 0), (3, 1)]]
+        external = {'q': ['int', 'int'], 'p': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.initialize_types()
+        unfold.type_variables()
+        typs = [unfold.var_types[v] for v in vars]
+        self.assertEqual(['p', 'q', 'q'], [t.table for t in typs])
+        self.assertEqual([0, 0, 1], [t.pos for t in typs])
+        occs = [t.occurrence for t in typs]
+        self.assertEqual(occs[1], occs[2])
+        self.assertEqual(False, occs[0] == occs[1])
+
+    def test_type_tables(self):
+        rules = parser.wrapped_parse(prog0)
+        external = {'q': ['int', 'int'], 'p': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.initialize_types()
+        unfold.type_variables()
+        result = unfold.type_tables()
+        typ_s0 = result['s'][0]
+        self.assertIsInstance(typ_s0, unfolding.UFDisj)
+        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
+        self.assertEqual(
+            ['q', 's'],
+            sorted([t.table for t in result['s'][1].args]))
+
+    def test_type(self):
+        rules = parser.wrapped_parse(prog0)
+        external = {'q': ['int', 'int'], 'p': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.type()
+        result = unfold.table_types
+        typ_s0 = result['s'][0]
+        self.assertIsInstance(typ_s0, unfolding.UFDisj)
+        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
+        self.assertEqual(
+            ['q', 's'],
+            sorted([t.table for t in result['s'][1].args]))
+
+    def test_strategy_1(self):
+        rules = parser.wrapped_parse(prog1)
+        external = {'q': ['int', 'int'], 'p': ['int'], 'r': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.type()
+        result = unfold.rule_strategy(rules[0])
+        filtered = [(t, sorted(pos)) for (((t, pos),), _) in result]
+        self.assertEqual([('q', [0, 1]), ('p', [0])], filtered)
+
+    def test_strategy_2(self):
+        rules = parser.wrapped_parse(prog2)
+        rule = rules[0]
+        external = {'q': ['int'], 'p': ['int']}
+        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold.type()
+        result = unfold.rule_strategy(rule)
+        filtered = [
+            sorted([(t, sorted(pos)) for (t, pos) in plan],
+                   key=lambda p: p[0])
+            for (plan, _) in result]
+        print(filtered)
+        self.assertEqual([[('p', [0])], [('p', [0]), ('q', [0])]], filtered)
