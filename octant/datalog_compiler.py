@@ -16,6 +16,8 @@
 import copy
 from six import moves
 
+from oslo_config import cfg
+
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 from octant import datalog_typechecker as typechecker
@@ -39,7 +41,7 @@ class Z3Compiler(object):
         self.datasource = datasource
         self.constants = constants
         self.typed_tables = {}
-        self.unfold_plan = []
+        self.unfold_plan = None
 
     def compile(self, z3compiler):
         """Compile preprocess high level Datalog.
@@ -50,9 +52,10 @@ class Z3Compiler(object):
         """
         self.substitute_constants()
         self.find_base_relations()
-        unfolder = unfolding.Unfolding(
-            self.rules, self.extensible_tables, z3compiler)
-        self.unfold_plan = unfolder.proceed()
+        if cfg.CONF.doc:
+            unfolder = unfolding.Unfolding(
+                self.rules, self.extensible_tables, z3compiler)
+            self.unfold_plan = unfolder.proceed()
         self.typed_tables = typechecker.type_theory(
             self.rules, self.extensible_tables, self.datasource)
 

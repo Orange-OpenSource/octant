@@ -106,7 +106,9 @@ class Z3Theory(object):
         with self.datasource:
             for table_name, fields in six.iteritems(
                     self.compiler.extensible_tables):
-                extract = unfold_plan.tables.get(table_name)
+                extract = (
+                    unfold_plan.tables.get(table_name)
+                    if unfold_plan is not None else None)
                 relation = self.relations[table_name]
                 if extract:
                     table_content = self.datasource.retrieve_table(
