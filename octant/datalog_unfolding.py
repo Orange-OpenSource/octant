@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
 import itertools
 import logging
 import six
@@ -22,91 +21,215 @@ import six
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 
-# Documentation of namedtuple will only work for Sphynx
 
-UFOcc = collections.namedtuple('UFOcc', ['rule_id', 'atom'])
-"""Occurence in rule bodies. Used in UFGround to keep track of new instances.
+class UFType(object):
+    """Base class for unfolding types"""
+    pass
 
-   .. py:attribute:: rule_id
 
-      Identifier of the rule whose body contains the occurrence
+class UFBot(UFType):
+    """Bottom type corresponds to no information at all"""
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
 
-   .. py:attribute:: atom
+    def __hash__(self):
+        return 1
 
-      The index of the atom in the body
-"""
+    def __repr__(self):
+        return "UFBot"
 
-UFBot = collections.namedtuple('UFBot', [])
-"""Bottom type corresponds to no information at all"""
 
-UFTop = collections.namedtuple('UFTop', [])
-"""Top type means any value"""
+class UFTop(UFType):
+    """Top type means any value"""
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
 
-UFGround = collections.namedtuple('UFGround', ['pos', 'table', 'occurrence'])
-"""Coerced to be a ground value of parameter at a given position
+    def __hash__(self):
+        return 2
 
-   .. py:attribute:: pos:
+    def __repr__(self):
+        return "UFTop"
 
-      position of the argument in the table (integer starting at 0)
 
-   .. py:attribute:: table:
+class UFGround(UFType):
+    """Coerced to be a ground value of parameter at a given position
 
-      table defining the ground term (str)
+    .. py:attribute:: pos:
 
-   .. py:attribute:: occurrence:
+        position of the argument in the table (integer starting at 0)
 
-      An occurrence list defining in a unique way the instance
-      of the ground term in use. (linked list represented as pair or None.
-      Elements are pairs of a rule identifier (int) and a position of the atom
-      in the body (int))
-"""
+    .. py:attribute:: table:
 
-UFConj = collections.namedtuple('UFConj', ['args'])
-"""Conjunctions of types
+        table defining the ground term (str)
 
-It represent a conjunct of constraints on the origin. It is usually simplified
-at some point as one of the origins.
-"""
+    .. py:attribute:: occurrence:
 
-UFDisj = collections.namedtuple('UFDisj', ['args'])
-"""Disjunctions of types
+        An occurrence list defining in a unique way the instance
+        of the ground term in use. (linked list represented as pair or None.
+        Elements are pairs of a rule identifier (int) and a position of the
+        atom in the body (int))
+    """
 
-The values of the element may come from either origins.
-"""
+    def __init__(self, pos, table, occurrence):
+        self.pos = pos
+        self.table = table
+        self.occurrence = occurrence
 
-UnfoldPlan = collections.namedtuple(
-    'UnfoldPlan',
-    ['plan', 'tables', 'contents'])
-"""Result of unfolding as a plan
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and other.pos == self.pos and
+            other.table == self.table and other.occurrence == self.occurrence)
 
-.. py:attribute:: plan
+    def __hash__(self):
+        return hash((self.pos, self.table, self.occurrence))
 
-    the plan to follow for unfolding
+    def __repr__(self):
+        return "UFGround(%s,%d,%s)" % (self.table, self.pos, self.occurrence)
 
-.. py: attribute:: tables
-    a dictionary with keys the tables to retrieve and values the list of
-    argument positions to retrieve
 
-.. py: attribute:: contents
-    a dictionnary from table to retrieve to list of actual content tuples
-    as specified by the tables field.
-"""
+class UFConj(UFType):
+    """Conjunctions of types
+
+    It represent a conjunct of constraints on the origin. It is usually
+    simplified at some point as one of the origins.
+    """
+    def __init__(self, args):
+        #: the members of the conjunct: args
+        self.args = args
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.args == self.args
+
+    def __hash__(self):
+        return hash(self.args)
+
+    def __repr__(self):
+        return "UFConj(%s)" % (self.args,)
+
+
+class UFDisj(UFType):
+    """Disjunctions of types
+
+    The values of the element may come from either origins.
+    """
+
+    def __init__(self, args):
+        #: the members of the disjunct: args
+        self.args = args
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.args == self.args
+
+    def __hash__(self):
+        return hash(self.args)
+
+    def __repr__(self):
+        return "UFDisj(%s)" % (self.args,)
+
+
+class UnfoldPlan(object):
+    """Result of unfolding as a plan
+
+    .. py:attribute:: plan
+
+        the full plan to follow for unfolding. For each rule that needs
+        simplification the plan associate to the id of the rule, a list of
+        simplification actions. An action is a list of elementary actions
+        taking place at the same time. An elementary action specifies a table
+        and a column in that table and the variable that will receive the
+        content of this table.
+
+    .. py: attribute:: tables
+
+        a dictionary with keys the tables to retrieve and values the list of
+        column positions to retrieve
+
+    .. py: attribute:: contents
+
+        a dictionnary from table to retrieve to list of actual content tuples
+        the columns given are as specified by the tables field.
+    """
+    def __init__(self, plan, tables, contents):
+        self.plan = plan
+        self.contents = contents
+        self.tables = tables
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and other.plan == self.plan and
+            other.tables == self.tables and other.contents == self.contents)
+
+    def __hash__(self):
+        return hash((self.plan, self.tables, self.contents))
+
 
 top = UFTop()
 bot = UFBot()
 
 
 def is_ground(t):
+    """Return true is object is a ground object
+
+    :param UFType t: type to check
+    :return: true if ground false otehrwise
+    :rtype: bool
+    """
     return isinstance(t, UFGround)
+
+
+def is_disj(t):
+    """Return true is object is a disjonction
+
+    :param UFType t: type to check
+    :return: true if disjonction false otehrwise
+    :rtype: bool
+    """
+    return isinstance(t, UFDisj)
+
+
+def occurrence(t):
+    """Computes an occurrence for the whole types
+
+    Occcurrence shouldbe seen as unique ID
+    :param UFType t: type to analyze
+    :return: all the occurrences
+    :rtype: tuple
+    """
+    if is_ground(t):
+        return t.occurrence
+    if is_disj(t):
+        return tuple(occurrence(a) for a in t.args)
+    return None
 
 
 def simplify_to_ground_types(t):
     """Gives back simple ground or disjunction"""
-    if is_ground(t) or isinstance(t, UFDisj):
+    if is_ground(t) or is_disj(t):
         return [t]
     if isinstance(t, UFConj):
         return [g for a in t.args for g in simplify_to_ground_types(a)]
     return []
+
+
+def contains_mark(occ, mark):
+    if isinstance(occ, tuple) and len(occ) == 2:
+        if mark == occ[0]:
+            return True
+        return contains_mark(occ[1], mark)
+    return False
+
+
+def len_occ(occ):
+    """Compute length of the occurrence pseudo list
+
+    We use pairs and not regular lists because we want a hashable
+    non mutable element.
+    """
+    count = 0
+    while isinstance(occ, tuple) and len(occ) == 2:
+        count = count + 1
+        occ = occ[1]
+    return count
 
 
 def weight_type(t):
@@ -116,7 +239,7 @@ def weight_type(t):
     The smaller, the better. Returns a pair for lexicographic ordering.
     """
     if is_ground(t):
-        return 0, len(t.occurrence)
+        return 0, len_occ(t.occurrence)
     if isinstance(t, (UFDisj, UFConj)):
         return 1, len(t.args)
     else:
@@ -133,7 +256,7 @@ def wrap_type(typ, mark):
     """
     if is_ground(typ):
         return UFGround(typ.pos, typ.table, (mark, typ.occurrence))
-    if isinstance(typ, UFDisj):
+    if is_disj(typ):
         return UFDisj(tuple(wrap_type(t, mark) for t in typ.args))
     if isinstance(typ, UFConj):
         return UFConj(tuple(wrap_type(t, mark) for t in typ.args))
@@ -153,7 +276,7 @@ def reduce_disj(l):
     flat = {
         x
         for e in l
-        for x in (e.args if isinstance(e, UFDisj) else (e,))}
+        for x in (e.args if is_disj(e) else (e,))}
     if len(flat) == 1:
         return flat.pop()
     disj = top if top in flat else UFDisj(tuple(flat))
@@ -168,9 +291,11 @@ def reduce_conj(l):
     types. Otherwise only keep the best of the conjunct and throw away the
     others.
 
-    :param l: the list of types that could build the conjunct
-    :returns: a conjunct with more than one type or what was considered as the
+    :param l: the list of types that could build the conjunct. It
+        must be sorted.
+    :return: a conjunct with more than one type or what was considered as the
         best type
+    :rtype: UFType
     """
     flat = [
         x
@@ -204,8 +329,10 @@ def candidates(problems):
 def environ_from_plan(unfold_plan):
     """Takes a plan and compile it to a dictionnary of envs for rules
 
-    :param unfold_plan:
-    :return: a dictionnary.
+    :param unfold_plan: the complete plan
+    :return: All the environments to which one must expand the ground
+       variables.
+    :rtype: an array of dictionnary.
     """
     def merge_env(envs):
         result = []
@@ -217,12 +344,14 @@ def environ_from_plan(unfold_plan):
         return result
 
     def expand(group):
-        table = group[0][0]
-        index_map = unfold_plan.tables[table]
-        contents = unfold_plan.contents[table]
+        (spec, vars) = group
         return [
-            {v: record[index_map.index(pos)] for (_, pos, v) in group}
-            for record in contents
+            # pylint: disable=unsubscriptable-object
+            {vars[i]: record[index_map.index(pos)]
+             for (i, pos) in enumerate(positions)}
+            for (table, positions) in spec
+            for index_map in (unfold_plan.tables[table],)
+            for record in unfold_plan.contents[table]
         ]
     env = {
         rule_id: merge_env(itertools.product(*(
@@ -236,6 +365,10 @@ def environ_from_plan(unfold_plan):
 
 
 class Unfolding(object):
+    """Unfolding is the engine for performing rule enfolding
+
+    It computes types for unfolding and builds a strategy
+    """
 
     def __init__(self, rules, extensible_tables, compiler):
         """Unfolding constructor
@@ -257,6 +390,11 @@ class Unfolding(object):
         self.populate_tables(extensible_tables)
 
     def populate_tables(self, extensible_tables):
+        """Initialize tables field
+
+        It is a map from table name to their arity and the fact they are
+        in the IDB or the EDB
+        """
         for table, args in six.iteritems(extensible_tables):
             self.tables[table] = (len(args), True)
         for table, group_rule in itertools.groupby(self.rules, key=head_table):
@@ -267,8 +405,9 @@ class Unfolding(object):
 
         An intentional table is ground at argument i, if in all rules
         defining it, the ith argument in the head is ground.
-        :returns: a map from table names to set of argument positions
-          (integers) that are ground for this table.
+
+        :return: a dictionary mapping each table name to the set of argument
+                 positions (integers) that are ground for this table.
         """
         return {
             table: set.intersection(
@@ -288,19 +427,24 @@ class Unfolding(object):
         ground_info = self.get_partially_ground_preds()
 
         def initialize_table(tname, is_ext, arity):
-            if is_ext:
-                return [UFGround(i, tname, None) for i in range(arity)]
-            else:
-                grounds = ground_info[tname]
-                return [
-                    UFGround(i, tname, None) if i in grounds else UFBot()
-                    for i in range(arity)]
+            grounds = ground_info[tname]
+            return [
+                UFGround(i, tname, None) if i in grounds else UFBot()
+                for i in range(arity)]
 
         self.table_types = {
             tname: initialize_table(tname, is_ext, arity)
-            for (tname, (arity, is_ext)) in six.iteritems(self.tables)}
+            for (tname, (arity, is_ext)) in six.iteritems(self.tables)
+            if not is_ext}
 
     def get_atom_type(self, atom, i):
+        """Computes the type of argument at position i of an atom atom
+
+        :param ast.Atom atom: the atom to type
+        :param int i: the position
+        :return: a type or None if not typable.
+        """
+
         table = atom.table
         # This is a primitive
         if table not in self.tables:
@@ -308,9 +452,11 @@ class Unfolding(object):
         # This is an extensible predicate: ground
         if self.tables[table][1]:
             return UFGround(i, table, None)
+
         # This is an intentional one: get the previous approximation
         if table in self.table_types:
-            return self.table_types.get(table, [])[i]
+            typ = self.table_types[table]
+            return typ[i] if i < len(typ) else None
         return None
 
     def type_variables(self):
@@ -364,21 +510,15 @@ class Unfolding(object):
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}
 
-    def debug_fixpoint(self):
-        """Prints out the results of computations."""
-        for var, typ in six.iteritems(self.var_types):
-            print("=" * 20)
-            print("Variable {} in {}".format(var[0], var[1]))
-            print("-" * 20)
-            print(str(typ))
-        for tab, typ in six.iteritems(self.table_types):
-            print("=" * 20)
-            print("Table {}".format(tab))
-            print("-" * 20)
-            for (i, t) in enumerate(typ):
-                print("{}: {}".format(i, t))
-
     def type(self):
+        """Type a set of rules.
+
+        Performs a fixpoint. Each iteration type variables then type rule
+        heads. Table types are comparable and the fixpoint is achieved when
+        table types do not evolve.
+
+        It is the type structure that guarantees convergence.
+        """
         self.initialize_types()
         while True:
             self.type_variables()
@@ -388,13 +528,19 @@ class Unfolding(object):
             self.table_types = new_table_types
 
     def rule_strategy(self, rule):
+        """Strategy for a rule
+
+        :param ast.Rule rule: the rule on which to compute a strategy
+        :return: a plan for the rule which is a list of pairs
+
+                 * a tuple of tables to unfold with the position to unfold
+                 * a list of variables solved
+        """
         debug = logging.getLogger().debug
         problems = get_to_solve(rule)
         if problems == []:
             return None
-        debug("*" * 60)
         debug("Rule to unfold: %s", rule)
-        debug("*" * 60)
         plan = []
         while problems != []:
             debug("Current problem\n:%s", problems)
@@ -407,11 +553,16 @@ class Unfolding(object):
             ]
             simple_types = [p for p in candidate_types if is_ground(p[0])]
             debug("Simple types for problem\n:%s", simple_types)
+            is_simple = True
             if simple_types == []:
-                raise Exception('Cannot handle non simple yet.')
+                is_simple = False
+                simple_types = [p for p in candidate_types if is_disj(p[0])]
+                if simple_types == []:
+                    debug("Non simple types %s", candidate_types)
+                    raise Exception('Cannot handle non simple yet.')
 
             def by_occ(p):
-                return p[0].occurrence
+                return occurrence(p[0])
 
             simple_types.sort(key=by_occ)
             simple_types_by_occ = [
@@ -420,8 +571,15 @@ class Unfolding(object):
             simple_types_by_occ.sort(reverse=True, key=lambda p: len(p[1]))
             debug("Sorted simple types:\n%s", simple_types_by_occ)
             (_, solved) = simple_types_by_occ[0]
-            plan.append([(t.table, t.pos, v) for (t, v) in solved])
-            solved_vars = [v[1] for v in solved]
+            solved_vars = [pair[1] for pair in solved]
+            if is_simple:
+                tspec = ((solved[0][0].table, [t.pos for (t, v) in solved]), )
+            else:
+                skeleton = solved[0][0].args
+                tspec = tuple(
+                    (a.table, [t.args[i].pos for (t, _) in solved])
+                    for (i, a) in enumerate(skeleton))
+            plan.append((tspec, solved_vars))
             debug("Solved variables:\n%s", solved_vars)
             # We expect less problems to solve and at least simpler ones.
             problems = [
@@ -435,7 +593,14 @@ class Unfolding(object):
         return plan
 
     def idb_extract(self, table_spec):
-        """Enumerates the ground idb tables used"""
+        """Enumerates the ground idb tables used
+
+        :param table_spec: a map from tablenames to array of argument positions
+                           used.
+        :return: a map from tablenames to arrays of records. Records contain
+                 compiled values.
+        :rtype: dictionnary
+        """
         grouped_rules = {
             headname: list(group)
             for (headname, group) in itertools.groupby(
@@ -453,6 +618,16 @@ class Unfolding(object):
         }
 
     def strategy(self):
+        """Computes a strategy to unfold.
+
+        :return: an unfoldplan made of three parts:
+
+                 * the plan itself as a sequence of rules to unfold
+                 * the ground tables that are needed associated with the list
+                   of columns used
+                 * the contents of IDB tables (programmatically defined) that
+                   are ground and used for the expansion.
+        """
         plans = [
             (rule.id, plan)
             for rule in self.rules
@@ -462,8 +637,9 @@ class Unfolding(object):
         table_accesses = {
             (t, p)
             for _, plan in plans
-            for group in plan
-            for (t, p, _) in group
+            for (group, _) in plan
+            for (t, l) in group
+            for p in l
         }
         tables = {
             table: [pos for _, pos in group]
@@ -479,5 +655,6 @@ class Unfolding(object):
         return UnfoldPlan(plans, tables, idb_tables)
 
     def proceed(self):
+        """The main entry point: type, then compute a strategy"""
         self.type()
         return self.strategy()
