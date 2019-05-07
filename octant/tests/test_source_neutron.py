@@ -60,6 +60,36 @@ FIREWALL_RULE = {
     u'project_id': u'5cf3e4475a374bae91c334c1a164f24c',
     u'id': u'0014effa-4434-4cc7-b77e-2dca67f14848', u'name': u'HTTP'}
 
+FIREWALL_RULE_V2 = {
+    u'protocol': u'icmp', u'description': u'', u'source_port': None,
+    u'source_ip_address': None, u'destination_ip_address': None,
+    u'firewall_policy_id': None, u'destination_port': None,
+    u'id': u'11dace88-52df-40b1-83eb-96b62a1b37b6', u'name': u'r_icmp',
+    u'tenant_id': u'6ab2197c1d72421b8a578b4181cffb40', u'enabled': True,
+    u'action': u'allow', u'ip_version': 4, u'shared': False,
+    u'project_id': u'6ab2197c1d72421b8a578b4181cffb40'}
+
+FIREWALL_POLICY_V2 = {
+    u'description': u'Egress firewall policy',
+    u'firewall_rules': [
+        u'efd85cff-9f59-41ac-9e87-d1cb34e8df3e',
+        u'dd99aa75-ab46-42f2-88f5-6ad954ab6787'],
+    u'tenant_id': u'6ab2197c1d72421b8a578b4181cffb40',
+    u'id': u'6dd2c9a3-0780-47e1-8d86-28a619fecb68', u'shared': False,
+    u'project_id': u'6ab2197c1d72421b8a578b4181cffb40',
+    u'audited': False, u'name': u'default egress'}
+
+FIREWALL_V2 = {
+    u'status': u'ACTIVE', u'description': u'',
+    u'ingress_firewall_policy_id': u'dfc408cb-5af2-47e7-819d-6669cf3fd564',
+    u'id': u'277e1103-d31d-4b5f-86e5-601598b7d6bc',
+    u'name': u'fga', u'admin_state_up': True,
+    u'tenant_id': u'6ab2197c1d72421b8a578b4181cffb40', u'shared': False,
+    u'project_id': u'6ab2197c1d72421b8a578b4181cffb40',
+    u'ports': [
+        u'cba4c500-7c54-4c1c-af6a-be3a57ee3015'],
+    u'egress_firewall_policy_id': u'dfc408cb-5af2-47e7-819d-6669cf3fd564'}
+
 
 class MockNeutronCnx(object):
     def list_firewalls(self):
@@ -70,6 +100,15 @@ class MockNeutronCnx(object):
 
     def list_firewall_rules(self):
         return {'firewall_rules': [FIREWALL_RULE]}
+
+    def list_fwaas_firewall_groups(self):
+        return {'firewall_groups': [FIREWALL_V2]}
+
+    def list_fwaas_firewall_policies(self):
+        return {'firewall_policies': [FIREWALL_POLICY_V2]}
+
+    def list_fwaas_firewall_rules(self):
+        return {'firewall_rules': [FIREWALL_RULE_V2]}
 
 
 class TestSourceNeutron(base.TestCase):
@@ -96,6 +135,15 @@ class TestSourceNeutron(base.TestCase):
                 (typ, access_field) = fields[field]
                 result = primitives.TYPES[typ].to_z3(access_field(row))
                 self.assertIn(type(result), [ref_type1, ref_type2])
+
+    def test_firewalls_v1(self):
+        self.verify("firewall_v1")
+
+    def test_firewall_policies_v1(self):
+        self.verify("firewall_policy_v1")
+
+    def test_firewall_rules_v1(self):
+        self.verify("firewall_rule_v1")
 
     def test_firewalls(self):
         self.verify("firewall")

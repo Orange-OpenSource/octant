@@ -329,9 +329,25 @@ def _get_firewall_routers(ncn):
     )
 
 
+def _get_firewall_ports(ncn):
+    return (
+        (fw['id'], port)
+        for fw in ncn.list_fwaas_firewall_groups()['firewall_groups']
+        for port in fw['ports']
+    )
+
+
+def _get_firewall_rule_policy(ncn):
+    return (
+        (rule, fw['id'], pos)
+        for fw in ncn.list_fwaas_firewall_policies()['firewall_policies']
+        for (pos, rule) in enumerate(fw['firewall_rules'])
+    )
+
+
 #: Describes how to bind values extracted from the neutron client.
 NEUTRON_TABLES = {
-    "firewall": (
+    "firewall_v1": (
         lambda ncn: ncn.list_firewalls()['firewalls'],
         {
             "id": ("id", lambda fw: fw['id']),
@@ -342,7 +358,7 @@ NEUTRON_TABLES = {
             "name": ("string", lambda fw: fw['name'])
         }
     ),
-    "firewall_policy": (
+    "firewall_policy_v1": (
         lambda ncn: ncn.list_firewall_policies()['firewall_policies'],
         {
             "id": ("id", lambda fw: fw['id']),
@@ -350,7 +366,7 @@ NEUTRON_TABLES = {
             "name": ("string", lambda fw: fw['name'])
         }
     ),
-    "firewall_rule": (
+    "firewall_rule_v1": (
         lambda ncn: ncn.list_firewall_rules()['firewall_rules'],
         {
             "id": ("id", lambda fwr: fwr['id']),
@@ -400,10 +416,96 @@ NEUTRON_TABLES = {
             "enabled": ("bool", lambda fw: fw['enabled'])
         }
     ),
-    "firewall_router": (_get_firewall_routers, {
+    "firewall_router_v1": (_get_firewall_routers, {
         "firewall_id": ('id', lambda fr: fr[0]),
         "router_id": ('id', lambda fr: fr[1])
+    }),
+    "firewall": (
+        lambda ncn: ncn.list_fwaas_firewall_groups()['firewall_groups'],
+        {
+            "id": ("id", lambda fw: fw['id']),
+            "project_id": ("id", lambda fw: fw['project_id']),
+            "status": ("status", lambda fw: normalize_status(fw['status'])),
+            "ingress_policy_id": (
+                "id",
+                lambda fw: fw['ingress_firewall_policy_id']),
+            "egress_policy_id": (
+                "id",
+                lambda fw: fw['egress_firewall_policy_id']),
+            "enabled": ("bool", lambda fw: fw['admin_state_up']),
+            "name": ("string", lambda fw: fw['name'])
+        }
+    ),
+    "firewall_policy": (
+        lambda ncn: ncn.list_fwaas_firewall_policies()['firewall_policies'],
+        {
+            "id": ("id", lambda fw: fw['id']),
+            "project_id": ("id", lambda fw: fw['tenant_id']),
+            "shared": ("bool", lambda fw: fw['shared']),
+            "audited": ("bool", lambda fw: fw['audited']),
+            "name": ("string", lambda fw: fw['name'])
+        }
+    ),
+
+    "firewall_rule": (
+        lambda ncn: ncn.list_fwaas_firewall_rules()['firewall_rules'],
+        {
+            "id": ("id", lambda fwr: fwr['id']),
+            "protocol": (
+                "string",
+                lambda fr: "" if fr['protocol'] is None else fr['protocol']),
+            "ip_version": (
+                "ip_version",
+                lambda fwr: ip_version(fwr['ip_version'])),
+            "action": (
+                "fw_action",
+                lambda fwr: fw_action(fwr['action']),
+            ),
+            "policy_id": ("id", lambda fr: fr['firewall_policy_id']),
+            "dest_prefix": (
+                "ip_address",
+                lambda fw: primitives.prefix_of_network(
+                    fw['destination_ip_address'])),
+            "dest_mask": (
+                "ip_address",
+                lambda fw: primitives.mask_of_network(
+                    fw['destination_ip_address'])),
+            "dest_port_min": (
+                "int",
+                lambda fr: port_min(fr['destination_port'])),
+            "dest_port_max": (
+                "int",
+                lambda fr: port_max(fr['destination_port'])),
+            "source_prefix": (
+                "ip_address",
+                lambda fw: primitives.prefix_of_network(
+                    fw['source_ip_address'])),
+            "source_mask": (
+                "ip_address",
+                lambda fw: primitives.mask_of_network(
+                    fw['source_ip_address'])),
+            "source_port_min": (
+                "int",
+                lambda fr: port_min(fr['source_port'])),
+            "source_port_max": (
+                "int",
+                lambda fr: port_max(fr['source_port'])),
+            "project_id": ("id", lambda fwr: fwr['project_id']),
+            "shared": ("bool", lambda fw: fw['shared']),
+            "name": ("string", lambda fw: fw['name']),
+            "enabled": ("bool", lambda fw: fw['enabled'])
+        }
+    ),
+    "firewall_port": (_get_firewall_ports, {
+        "firewall_id": ('id', lambda fr: fr[0]),
+        "port_id": ('id', lambda fr: fr[1])
+    }),
+    "firewall_rule_policy": (_get_firewall_rule_policy, {
+        "rule_id": ('id', lambda fr: fr[0]),
+        "policy_id": ('id', lambda fr: fr[1]),
+        "position": ('int', lambda fr: fr[2])
     })
+
 }
 
 
