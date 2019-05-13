@@ -255,6 +255,8 @@ def wrap_type(typ, mark):
     :return: modified type
     """
     if is_ground(typ):
+        if contains_mark(typ.occurrence, mark):
+            return typ
         return UFGround(typ.pos, typ.table, (mark, typ.occurrence))
     if is_disj(typ):
         return UFDisj(tuple(wrap_type(t, mark) for t in typ.args))
