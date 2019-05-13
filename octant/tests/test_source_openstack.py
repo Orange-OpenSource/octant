@@ -530,7 +530,7 @@ class TestSourceOpenstack(base.TestCase):
             mck.assert_called_once()
 
     def test_port_min(self):
-        self.assertEqual(1, source.port_min(None))
+        self.assertEqual(0, source.port_min(None))
         self.assertEqual(2, source.port_min(2))
         self.assertEqual(3, source.port_min('3'))
         self.assertEqual(4, source.port_min('4:7'))

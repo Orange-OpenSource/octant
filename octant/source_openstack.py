@@ -40,7 +40,7 @@ def normalize_status(raw):
 def port_min(port_range):
     """Extract port min from Openstack format"""
     if port_range is None:
-        return 1
+        return 0
     if isinstance(port_range, int):
         return port_range
     if ':' in port_range:
