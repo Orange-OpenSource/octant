@@ -171,8 +171,11 @@ security_group_id  id           security group id
 project_id         id           id of owner project
 =================  ===========  ========================
 
-firewall_rule
--------------
+Firewall as a service V1 (deprecated)
+=====================================
+
+firewall_rule_v1
+----------------
 
 ==================  ===========  =============================
 FieldName           Type         Description
@@ -195,8 +198,8 @@ source_port_min     int          first port for source
 source_port_max     int          last port for source
 ==================  ===========  =============================
 
-firewall_policy
----------------
+firewall_policy_v1
+------------------
 
 =================  ===========  =============================
 FieldName          Type         Description
@@ -206,8 +209,8 @@ project_id         id           project containing the policy
 name               string       name of policy
 =================  ===========  =============================
 
-firewall
---------
+firewall_v1
+-----------
 
 =================  ===========  ================================
 FieldName          Type         Description
@@ -220,8 +223,8 @@ status             status       status of firewall
 enabled            bool         admin state of firewall
 =================  ===========  ================================
 
-firewall_router
----------------
+firewall_router_v1
+------------------
 
 =================  ===========  ========================
 FieldName          Type         Description
@@ -229,6 +232,83 @@ FieldName          Type         Description
 firewall_id        id           firewall id
 router_id          id           router id
 =================  ===========  ========================
+
+Firewall as a service V2 (current)
+==================================
+
+firewall_rule
+-------------
+
+==================  ===========  ========================================
+FieldName           Type         Description
+==================  ===========  ========================================
+id                  id           id of firewall
+name                string       name of firewall
+enabled             bool         if the rule is active
+shared              bool         whether it is shared with other projects
+project_id          id           project defining the resource
+ip_version          ip_version   ip version
+protocol            string       protocol filtered
+action              fw_action    action taken if rule matches
+policy_id           id           policy containing the rule
+dest_prefix         ip_address   prefix for destination
+dest_mask           ip_address   mask for destination
+dest_port_min       int          first port for destination
+dest_port_max       int          last port for destination
+source_prefix       ip_address   prefix for source
+source_mask         ip_address   mask for source
+source_port_min     int          first port for source
+source_port_max     int          last port for source
+==================  ===========  ========================================
+
+firewall_policy
+---------------
+
+=================  ===========  =========================================
+FieldName          Type         Description
+=================  ===========  =========================================
+id                 id           firewall policy id
+project_id         id           project containing the policy
+name               string       name of policy
+shared             bool         whether it is shared with other projects
+audited            bool         whether the rule is audited
+=================  ===========  =========================================
+
+firewall
+--------
+
+=================  ===========  ==============================================
+FieldName          Type         Description
+=================  ===========  ==============================================
+id                 id           firewall id
+name               string       name of firewall
+project_id         id           project containing the firewall
+ingress_policy_id  id           name of policy associated for incoming packets
+egress_policy_id   id           name of policy associated for outgoing packets
+status             status       status of firewall
+enabled            bool         admin state of firewall
+=================  ===========  ==============================================
+
+firewall_port
+-------------
+
+=================  ===========  ========================
+FieldName          Type         Description
+=================  ===========  ========================
+firewall_id        id           firewall id
+port_id            id           port id
+=================  ===========  ========================
+
+firewall_rule_policy
+--------------------
+
+=================  ===========  =============================================
+FieldName          Type         Description
+=================  ===========  =============================================
+rule_id            id           firewall rule id
+policy_id          id           firewall policy id
+position           int          position (priority) of the rule in the policy
+=================  ===========  =============================================
 
 Compute (Nova)
 ==============

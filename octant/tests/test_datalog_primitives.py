@@ -29,6 +29,8 @@ from octant.tests import base
 
 class TestBoolType(base.TestCase):
     """Z3 Boolean values"""
+    bool_false = z3.BitVecVal(0, 1)
+    bool_true = z3.BitVecVal(1, 1)
 
     def setUp(self):
         self.type = primitives.BoolType()
@@ -43,12 +45,12 @@ class TestBoolType(base.TestCase):
         self.assertEqual(False, self.type.unmarshall('False'))
 
     def test_to_z3(self):
-        self.assertEqual(z3.BoolVal(True), self.type.to_z3(True))
-        self.assertEqual(z3.BoolVal(False), self.type.to_z3(False))
+        self.assertEqual(TestBoolType.bool_true, self.type.to_z3(True))
+        self.assertEqual(TestBoolType.bool_false, self.type.to_z3(False))
 
     def test_from_z3(self):
-        self.assertEqual(True, self.type.to_z3(z3.BoolVal(True)))
-        self.assertEqual(False, self.type.to_z3(z3.BoolVal(False)))
+        self.assertEqual(True, TestBoolType.bool_true)
+        self.assertEqual(False, TestBoolType.bool_false)
 
 
 class TestStringType(base.TestCase):

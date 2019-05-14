@@ -63,10 +63,12 @@ class BoolType(Z3Type):
     """Transcode boolean in Z3"""
 
     def __init__(self):
-        super(BoolType, self).__init__('bool', z3.BoolSort())
+        super(BoolType, self).__init__('bool', z3.BitVecSort(1))
 
     def to_z3(self, val):
-        return z3.BoolVal(val)
+        if val:
+            return z3.BitVecVal(1, self.type_instance)
+        return z3.BitVecVal(0, self.type_instance)
 
     def marshall(self, val):
         return str(val)
@@ -75,7 +77,7 @@ class BoolType(Z3Type):
         return val == 'True'
 
     def to_os(self, val):
-        return val.decl().name() == 'true'
+        return val.as_long() == 1
 
 
 class StringType(Z3Type):

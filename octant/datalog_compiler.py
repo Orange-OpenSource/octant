@@ -84,10 +84,12 @@ class Z3Compiler(object):
 
     def find_base_relations(self):
         """Extracts base relations of the theory"""
+        aux_counter = 0
+        new_rules = []
         for rule in self.rules:
             if self.datasource.is_extensible(rule.head):
                 raise Z3NotWellFormed("No base predicate allowed in head.")
-            for atom in rule.body:
+            for i, atom in enumerate(rule.body):
                 if not self.datasource.is_extensible(atom):
                     continue
                 fields = self.extensible_tables.setdefault(atom.table, [])
@@ -97,6 +99,21 @@ class Z3Compiler(object):
                 for label in atom.labels:
                     if label not in fields:
                         fields.append(label)
+                if atom.negated:
+                    new_table = "_negated_%d" % aux_counter
+                    aux_counter += 1
+                    new_atom = ast.Atom(
+                        new_table, atom.args, negated=True)
+                    var_row = [
+                        ast.Variable("V%d" % i)
+                        for i in range(len(atom.args))]
+                    atom_head = ast.Atom(new_table, var_row)
+                    atom_body = ast.Atom(
+                        atom.table, var_row, labels=atom.labels)
+                    new_rule = ast.Rule(atom_head, [atom_body])
+                    new_rules.append(new_rule)
+                    rule.body[i] = new_atom
+        self.rules.extend(new_rules)
         for fields in self.extensible_tables.values():
             fields.sort()
         for rule in self.rules:
