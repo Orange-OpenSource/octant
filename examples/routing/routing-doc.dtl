@@ -1,0 +1,206 @@
+##################### UTILITIES ##########################
+
+
+############################### CORE ##############################
+# DN1 can connect to DN2 over port number PN for protocole PRO.
+# A route exists and security groups allow the connection.
+connect(DN1, DN2, PN1,PN2, PRO) :-
+    server(name=DN1, id=D1),
+    server(name=DN2, id=D2),
+    attached_ip(SN, D1, P1, IP1),
+    attached_ip(SN2, D2, P2, IP2),
+    incoming_server(D2, PRO, IP1, PN1, IP2, PN2).
+
+attached_ip(SN, D, P, IP) :-
+    port_ip(subnet_id=SN, ip=IP, port_id=P),
+    port(id=P, device_id=D).
+
+outgoing(SN1, HOP, PRO, IP1, PN1, IP2, PN2) :-
+    attached_ip(SN1, D1, P1, IP1),
+    attached_ip(SN2, D2, P2, IP2),
+    allow_traffic_sg(IP1, IP2, PN2, PRO, P1, P2),
+    allow_traffic_fw(P1, PRO, IP2, PN2, IP1, PN1), # not sure it is implemented
+    outgoing_subnet(SN1, HOP, IP2).
+
+# next_hop on a subnet using an IP on the subnet
+outgoing_subnet(SN, DIP, DIP) :-
+    port_ip(subnet_id=SN, ip=DIP).
+
+# next_hop on a subnet using an explicit route (DHCP announced)
+outgoing_subnet(SN, IP, DIP) :-
+    !port_ip(subnet_id=SN, ip=DIP),
+    subnet_route(subnet_id=SN, dest_prefix=DPR, dest_mask=DM, next_hop=HP),
+    DPR = DIP & DM,
+    !better_match_subnet(SN, DM, DIP).
+
+# next_hop on a subnet using the default gateway
+outgoing_subnet(SN, IP, DIP) :-
+    !port_ip(subnet_id=SN, ip=DIP),
+    !match_subnet(SN, DIP),
+    subnet(id=SN, gateway_ip=IP),
+    !IP=0.0.0.0.
+
+# incoming on a router
+incoming_router(R, PRO, IP1, PN1, IP2, PN2) :-
+    outgoing(SN, HOP, PRO, IP1, PN1, IP2, PN2),
+    attached_ip(SN, R, P, HOP),
+    allow_traffic_fw(P, PRO, IP1, PN1, IP2, PN2),
+    router(id=R).
+
+# incoming on a server (last)
+incoming_server(S2, PRO, IP1, PN1, IP2, PN2) :-
+    outgoing(SN, IP2, PRO, IP1, PN1, IP2, PN2),
+    attached_ip(SN, S2, P, IP2),
+    allow_traffic_fw(P, PRO, IP1, PN1, IP2, PN2),
+    server(id=S2).
+
+# Outgoing from a router on an IP of a directly attached subnet
+outgoing(SN, IP2, PRO, IP1, PN1, IP2, PN2) :-
+    incoming_router(R, PRO, IP1, PN1, IP2, PN2),
+    port(id=RP, device_id=R),
+    allow_traffic_fw(RP, PRO, IP2, PN2, IP1, PN1),
+    port_ip(subnet_id=SN, port_id=RP),
+    port_ip(subnet_id=SN, ip=IP2).
+
+# Outgoing from a router with an explicit route
+outgoing(SN, HP, PRO, IP1, PN1, IP2, PN2) :-
+    incoming_router(R, PRO, IP1, PN1, IP2, PN2),
+    router_route(router_id=R, dest_prefix=DPR, dest_mask=DM, next_hop=HP),
+    DPR = IP2 & DM,
+    !better_match_router(R, DM, IP2),
+    port(id=RP, device_id=R),
+    allow_traffic_fw(RP, PRO, IP2, PN2, IP1, PN1),
+    port_ip(subnet_id=SN, ip=HP),
+    port_ip(port_id=RP, subnet_id=SN).
+
+# true if there is a route for ip IP on router R that is more specific
+# than the mask M provided.
+better_match_router(R, M, IP) :-
+    router_route(dest_prefix=RP, dest_mask=RM, router_id=R),
+    RP = IP & RM,
+    RM > M.
+
+# true if there is a route for ip IP on subnet SN used for default gateway.
+match_subnet(SN, IP) :-
+    subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
+    RP = IP & RM.
+
+# true if there is a route for ip IP on subnet SN that is more specific
+# than the mask M provided.
+better_match_subnet(SN, M, IP) :-
+    subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
+    RP = IP & RM,
+    RM > M.
+
+###################### SECURITY GROUPS ######################
+
+# Traffic allowed if an egress and an ingress allow it
+# Beware that filtering is always done on destination port
+# whatever is the direction of the rule.
+allow_traffic_sg(IP1, IP2, PN, PRO, P1, P2) :-
+    sg_port_rule(P1, egress, R1),
+    sg_port_rule(P2, ingress, R2),
+    ok_rule(R1, IP2, PN, PRO, P2),
+    ok_rule(R2, IP1, PN, PRO, P1).
+
+sg_port_rule(P, D, R) :-
+    port_sg(port_id=P, sg_id=SG),
+    rule(id=R, direction=D, security_group_id=SG).
+
+# ok_rule checks that a rule allows some kind of traffic.
+# PRO is the protocol and PN is the protocol port number.
+# We do not handle ICMP types and code.
+# P is the Openstack port on the other end. we must check
+ok_rule(R, IP, PN, PRO, P) :-
+    rule(id=R, ip_version=ipv4,
+         remote_ip_prefix=RP, remote_ip_mask=RM, port_range_min=MI,
+         port_range_max=MA),
+    RP = IP & RM,
+    PN >= MI,
+    MA >= PN,
+    ok_rule_protocol(R, PRO),
+    ok_rule_sec_group(R, P).
+
+# if not present, CIDR has been transformed into a catch-all (0.0.0.0/0)
+# by preprocessing.
+ok_rule_ip(R, IP) :-
+    rule(id=R, ip_version=ipv4, remote_ip_prefix = RP, remote_ip_mask = RM),
+    RP = IP & RM.
+
+# A rule match the protocol, if it specifies this protocol or nothing.
+# Nothing is expressed by "". Warning: this may fail if a protocol has several
+# names (eg numeric version and symbolic one).
+ok_rule_protocol(R, PRO) :-
+    rule(id=R, protocol=PRO).
+
+ok_rule_protocol(R, PRO) :-
+    rule(id=R, protocol="").
+
+# A rule match the security group of the opposite end if it specifies this
+# sec group or nothing (captured by none id). Caveat: this security group may
+# be different from the one that allow the traffic on the other end. That is
+# why we need P here.
+ok_rule_sec_group(R, P) :-
+    rule(id=R, remote_group_id=SG),
+    port_sg(port_id=P, sg_id=SG).
+
+ok_rule_sec_group(R, SG) :-
+    rule(id=R, remote_group_id=none).
+
+###################### FIREWALL (V2) ######################
+
+# Check that traffic can flow from IP1/P1 to IP2/P2 for protocol PRO
+# ingress traffic going from IP1 to IP2, egress traffic from IP2 to IP1
+# otherwise ip/port pairs must be reversed.
+
+allow_traffic_fw(PO, PRO, IP1, P1, IP2, P2) :- !firewall_port(port_id=PO).
+
+allow_traffic_fw(PO, PRO, IP1, P1, IP2, P2) :-
+    firewall_port(port_id=PO, firewall_id=FW),
+    firewall(id=FW, ingress_policy_id=IPOL, egress_policy_id=EPOL),
+    allow_traffic_pol(IPOL, IP1, IP2, PRO, P1, P2),
+    allow_traffic_pol(EPOL, IP2, IP1, PRO, P2, P1).
+
+# If there is no policy registered, the traffic is allowed.
+allow_traffic_pol(none, IP1, IP2, PRO, P1, P2).
+
+allow_traffic_pol(POL, IP1, IP2, PRO, P1, P2) :-
+    firewall_rule_policy(policy_id=POL, rule_id=RID, position=N),
+    ok_fw_rule(RID, IP1, IP2, PRO, P1, P2), # The rule match
+    !better_fw_rule(POL, N, IP1, IP2, PRO, P1, P2), # the rule is the best
+    firewall_rule(id=RID, action=allow). # the action is allow
+
+better_fw_rule(POL, N, IP1, IP2, PRO, P1, P2) :-
+    firewall_rule_policy(policy_id=POL, rule_id=RID, position=M),
+    ok_fw_rule(RID, IP1, IP2, PRO, P1, P2), # The rule match
+    M < N. # the rule has a better priority
+
+ok_fw_rule(RID, IP1, IP2, PRO, P1, P2) :-
+    firewall_rule(id=RID, enabled=true),
+    ok_fw_protocol(RID, PRO),
+    ok_fw_source_ip(RID, IP1),
+    ok_fw_dest_ip(RID, IP2),
+    ok_fw_source_port(RID, P1),
+    ok_fw_dest_port(RID, P2).
+
+ok_fw_protocol(RID, PRO) :-
+    firewall_rule(id=RID, protocol="").
+
+ok_fw_protocol(RID, PRO) :-
+    firewall_rule(id=RID, protocol=PRO).
+
+ok_fw_source_ip(RID, IP) :-
+    firewall_rule(id=RID, source_prefix=P, source_mask=M),
+    P = IP & M.
+
+ok_fw_source_port(RID, P) :-
+    firewall_rule(id=RID, source_port_min=MIN, source_port_max=MAX),
+    P >= MIN, P <= MAX.
+
+ok_fw_dest_ip(RID, IP) :-
+    firewall_rule(id=RID, dest_prefix=P, dest_mask=M),
+    P = IP & M.
+
+ok_fw_dest_port(RID, P) :-
+    firewall_rule(id=RID, dest_port_min=MIN, dest_port_max=MAX),
+    P >= MIN, P <= MAX.
