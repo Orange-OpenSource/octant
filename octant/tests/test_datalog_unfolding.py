@@ -241,5 +241,4 @@ class TestUnfolding(base.TestCase):
             sorted([(t, sorted(pos)) for (t, pos) in plan],
                    key=lambda p: p[0])
             for (plan, _) in result]
-        print(filtered)
         self.assertEqual([[('p', [0])], [('p', [0]), ('q', [0])]], filtered)
