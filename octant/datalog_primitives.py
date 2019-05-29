@@ -205,6 +205,16 @@ def mask_of_network(cidr):
                                   strict=False).netmask.compressed)
 
 
+def ip_of_cidr(cidr):
+    """Returns the full ip address even when given in CIDR format
+
+    Works for both cidr or single address
+    """
+    return (
+        u'0.0.0.0' if cidr is None
+        else ipaddress.ip_interface(six.text_type(cidr)).ip.compressed)
+
+
 Operation = collections.namedtuple(
     'Operation',
     ['args', 'result', 'ty_vars', 'z3'])

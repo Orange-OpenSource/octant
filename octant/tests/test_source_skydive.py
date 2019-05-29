@@ -200,7 +200,7 @@ class TestSourceSkydive(base.TestCase):
                                                             ftype))
 
     def verify(self, name):
-        conn = MockSkydiveCnx()
+        conn = source.SkydiveCnx(MockSkydiveCnx())
         (access_rows, fields) = source.TABLES[name]
         # Py35 and Py27 types are not the same.
         # ref_type1 is BitVecRef and ref_type2 is BoolRef in py35
@@ -228,11 +228,14 @@ class TestSourceSkydive(base.TestCase):
     def test_port(self):
         self.verify('sk_ovsport')
 
-    def test_filter(self):
-        self.verify('sk_filter')
+    def test_ovs_patch(self):
+        self.verify('sk_patch')
 
-    def test_action(self):
-        self.verify('sk_action')
+    def test_ovs_internal(self):
+        self.verify('sk_internal')
+
+    def test_ovs_internal_ip(self):
+        self.verify('sk_internal_ip')
 
     def test_owns(self):
         self.verify('sk_owns')
