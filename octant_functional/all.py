@@ -26,7 +26,7 @@ def subdirs(path):
     return [
         os.path.join(path, sp)
         for sp in os.listdir(path)
-        if os.path.isdir(os.path.join(path, sp))]
+        if os.path.isdir(os.path.join(path, sp)) and sp != "__pycache__"]
 
 
 def files(path):

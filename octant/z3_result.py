@@ -56,7 +56,7 @@ class Cube(object):
         self.faces = faces
 
     def __repr__(self):
-        return str(self.faces)
+        return str([self.faces[i] for i in range(len(self.faces))])
 
     def __eq__(self, x):
         return isinstance(x, self.__class__) and x.faces == self.faces

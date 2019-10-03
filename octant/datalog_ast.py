@@ -155,6 +155,9 @@ class Variable(Expr):
             else "{}:{}".format(self.id, self.type))
         return expr_repr
 
+    def __hash__(self):
+        return hash((self.id, self.rule_id))
+
     def pin_variables(self, rule_id):
         self.rule_id = rule_id
 

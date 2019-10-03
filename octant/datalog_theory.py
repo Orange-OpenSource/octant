@@ -16,6 +16,7 @@
 
 from __future__ import print_function
 
+from collections import OrderedDict
 import logging
 import six
 from six import moves
@@ -191,17 +192,17 @@ class Z3Theory(object):
                 "Arity of predicate inconsistency in {}".format(atom))
         for i in moves.xrange(len(atom.types)):
             atom.args[i].type = atom.types[i]
+        ast_vars = list(OrderedDict.fromkeys([
+            arg for arg in atom.args if isinstance(arg, ast.Variable)
+        ]))
         vars = {}
         query = self.compile_atom(vars, atom, {})
-        query = query if vars == {} else z3.Exists(list(vars.values()), query)
+        if vars != {}:
+            compiled_vars = [vars[ast_var.full_id()] for ast_var in ast_vars]
+            query = z3.Exists(compiled_vars, query)
         self.context.query(query)
-        types = [
-            self.datasource.types[arg.type]
-            for arg in atom.args
-            if isinstance(arg, ast.Variable)]
-        variables = [
-            arg.id for arg in atom.args if isinstance(arg, ast.Variable)
-        ]
+        types = [self.datasource.types[ast_var.type] for ast_var in ast_vars]
+        variables = [ast_var.id for ast_var in ast_vars]
         raw_answer = self.context.get_answer()
         logging.getLogger().debug("Raw answer:\n%s", raw_answer)
         answer = z3r.z3_to_array(raw_answer, types)
