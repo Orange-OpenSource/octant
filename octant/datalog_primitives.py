@@ -162,6 +162,7 @@ TYPES = {
     'int4': NumType('int4', size=4),
     'int8': NumType('int8', size=8),
     'int16': NumType('int16', size=16),
+    'int24': NumType('int24', size=24),
     'direction': StringType('direction', size=2),
     'status': StringType('status', size=3),
     'ip_address': IpAddressType(),
