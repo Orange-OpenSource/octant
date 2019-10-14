@@ -74,15 +74,21 @@ class TestDatalogFile(unittest.TestCase):
             " --restore {}".format(os.path.join(self.dirpath, 'backup.csv'))
             if 'backup.csv' in all_files
             else "")
+        opt_filesource = (
+            " --filesource {}".format(os.path.join(self.dirpath, 'source.csv'))
+            if 'source.csv' in all_files
+            else ""
+        )
         theory = os.path.join(self.dirpath, 'test.dtl')
         (outfd, outfile) = tempfile.mkstemp(suffix='.csv')
         # os.path.join(self.dirpath, 'out.csv')
         with open(os.path.join(self.dirpath, 'query.dtl'), 'r') as query_file:
             query = query_file.read().strip(' \t\n')
-        cmd = ("{} -m octant.datalog_theory --csv{}{}"
+        cmd = ("{} -m octant.datalog_theory --csv{}{}{}"
                " --theory {} --query '{}' > {}").format(
                    sys.executable,
                    opt_config,
+                   opt_filesource,
                    opt_backup,
                    theory,
                    query,

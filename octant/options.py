@@ -47,6 +47,9 @@ CLI_OPTIONS = [
     cfg.MultiStrOpt('theory', help="Name of theory file to load"),
     cfg.MultiStrOpt(
         'query', help="Query(ies) to ask on the theory. Can be repeated."),
+    cfg.MultiStrOpt(
+        'filesource', default=[],
+        help="Description of a file source (to use witha backup)"),
     cfg.StrOpt('save', default=None, help='Create a backup file'),
     cfg.StrOpt(
         'restore', default=None,
