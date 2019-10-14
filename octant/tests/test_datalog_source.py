@@ -23,10 +23,10 @@ Tests for `datalog_source` module.
 
 import mock
 
+from octant import base as obase
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 from octant import datalog_source as source
-from octant import datalog_typechecker as typechecker
 from octant.tests import base
 
 
@@ -148,8 +148,8 @@ class TestDatasource(base.TestCase):
         def fail2():
             self.src.retrieve_table("T1", ["f5", "f2"], lambda x: ())
 
-        self.assertRaises(typechecker.Z3TypeError, fail1)
-        self.assertRaises(typechecker.Z3TypeError, fail2)
+        self.assertRaises(obase.Z3TypeError, fail1)
+        self.assertRaises(obase.Z3TypeError, fail2)
 
     def test_types_failures(self):
         def fail1():
@@ -158,5 +158,5 @@ class TestDatasource(base.TestCase):
         def fail2():
             self.src.get_table_types("T1", ["f5", "f2"])
 
-        self.assertRaises(typechecker.Z3TypeError, fail1)
-        self.assertRaises(typechecker.Z3TypeError, fail2)
+        self.assertRaises(obase.Z3TypeError, fail1)
+        self.assertRaises(obase.Z3TypeError, fail2)

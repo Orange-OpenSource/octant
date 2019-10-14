@@ -15,7 +15,7 @@
 """File Data Source"""
 from oslo_config import cfg
 
-from octant import datalog_source
+from octant import base
 
 
 def loadDescription(tables, source, fd):
@@ -30,7 +30,7 @@ def loadDescription(tables, source, fd):
         for descr in elements[1:]:
             subs = descr.strip().split(":")
             if len(subs) != 2:
-                raise datalog_source.Z3SourceError(
+                raise base.Z3SourceError(
                     "Bad type description in {}: {}".format(source, descr))
             [field, typ] = subs
             contents[field] = (typ, lambda x: [])

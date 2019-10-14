@@ -21,14 +21,8 @@ import six
 from ply import lex
 from ply import yacc
 
+from octant import base
 from octant import datalog_ast as ast
-
-
-class Z3ParseError(Exception):
-    """Raised on syntax errors at end of parsing."""
-
-    def __init__(self, *args, **kwargs):
-        super(Z3ParseError, self).__init__(self, *args, **kwargs)
 
 
 # Not changing ply conventions because of pylint
@@ -289,7 +283,7 @@ def wrapped_parse(intext):
     parser.count_error = 0
     result = parser.parse(intext)
     if parser.count_error > 0:
-        raise Z3ParseError("{} errors".format(parser.count_error))
+        raise base.Z3ParseError("{} errors".format(parser.count_error))
     return result
 
 

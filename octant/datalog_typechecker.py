@@ -16,15 +16,9 @@
 import logging
 from six import moves
 
+from octant import base
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
-
-
-class Z3TypeError(Exception):
-    """Raised for a theory that is not well typed"""
-
-    def __init__(self, *args, **kwargs):
-        super(Z3TypeError, self).__init__(self, *args, **kwargs)
 
 
 def type_theory(rules, extensible_tables, datasource):
@@ -49,7 +43,7 @@ def type_theory(rules, extensible_tables, datasource):
                             var_inst.type = arg.type
                         else:
                             if var_inst.type != arg.type:
-                                raise Z3TypeError(
+                                raise base.Z3TypeError(
                                     "Incompatible constraint on {}: {} != {}"
                                     .format(arg.id, var_inst.type, arg.type))
                     return var_inst
@@ -75,7 +69,7 @@ def type_theory(rules, extensible_tables, datasource):
             elif atom.table in dict_tables:
                 atom.types = dict_tables[atom.table]
                 if len(atom.types) != len(atom.args):
-                    raise Z3TypeError(
+                    raise base.Z3TypeError(
                         "Arity problem for symbol {} in {}".format(
                             atom.table, atom))
             else:
@@ -117,7 +111,7 @@ def type_theory(rules, extensible_tables, datasource):
                 work_done = True
             else:
                 if typ_scheme_res != expr.type:
-                    raise Z3TypeError(
+                    raise base.Z3TypeError(
                         "Type error expresion {} has type {} not {}".format(
                             expr,
                             typ_scheme_res,
@@ -137,7 +131,7 @@ def type_theory(rules, extensible_tables, datasource):
                     work_done = True
                 else:
                     if typ_schema_arg != arg.type:
-                        raise Z3TypeError(
+                        raise base.Z3TypeError(
                             "Type error: arg {} has type {} not {}".format(
                                 arg,
                                 typ_schema_arg,
@@ -161,7 +155,7 @@ def type_theory(rules, extensible_tables, datasource):
                     work_done = True
                 else:
                     if arg.type != param_type:
-                        raise Z3TypeError(
+                        raise base.Z3TypeError(
                             "Type error {}:{} not {} in {}".format(
                                 arg,
                                 arg.type,
@@ -183,7 +177,7 @@ def type_theory(rules, extensible_tables, datasource):
                     work_done = True
                 else:
                     if param0 != param1:
-                        raise Z3TypeError(
+                        raise base.Z3TypeError(
                             "Type error on equality {} not {} != {}".format(
                                 atom,
                                 param0,

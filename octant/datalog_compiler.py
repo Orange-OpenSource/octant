@@ -18,17 +18,11 @@ from six import moves
 
 from oslo_config import cfg
 
+from octant import base
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 from octant import datalog_typechecker as typechecker
 from octant import datalog_unfolding as unfolding
-
-
-class Z3NotWellFormed(Exception):
-    """Raised for a theory that do not respect well-formedness rules"""
-
-    def __init__(self, *args, **kwargs):
-        super(Z3NotWellFormed, self).__init__(self, *args, **kwargs)
 
 
 class Z3Compiler(object):
@@ -66,7 +60,7 @@ class Z3Compiler(object):
             if isinstance(oarg, ast.Constant):
                 arg = self.constants.get(args[i].name, None)
                 if arg is None:
-                    raise Z3NotWellFormed(
+                    raise base.Z3NotWellFormed(
                         "Unknown constant: {}".format(args[i].name))
                 args[i] = copy.deepcopy(arg)
 
@@ -88,14 +82,14 @@ class Z3Compiler(object):
         new_rules = []
         for rule in self.rules:
             if self.datasource.is_extensible(rule.head):
-                raise Z3NotWellFormed("No base predicate allowed in head: " +
-                                      rule.head.table)
+                raise base.Z3NotWellFormed(
+                    "No base predicate allowed in head: " + rule.head.table)
             for i, atom in enumerate(rule.body):
                 if not self.datasource.is_extensible(atom):
                     continue
                 fields = self.extensible_tables.setdefault(atom.table, [])
                 if atom.labels is None:
-                    raise Z3NotWellFormed(
+                    raise base.Z3NotWellFormed(
                         "No labels for extensible atom {}".format(atom))
                 for label in atom.labels:
                     if label not in fields:
@@ -137,7 +131,7 @@ class Z3Compiler(object):
 
         for (label, arg) in zip(atom.labels, atom.args):
             if label in dict_arg:
-                raise Z3NotWellFormed(
+                raise base.Z3NotWellFormed(
                     "Duplicate label '{}' in atom {}".format(label, atom))
             dict_arg[label] = arg
 

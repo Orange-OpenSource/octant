@@ -21,7 +21,7 @@ Tests File (backup) datasource
 
 import six
 
-from octant import datalog_source
+from octant import base as obase
 from octant import source_file as source
 from octant.tests import base
 
@@ -57,5 +57,5 @@ class TestSourceFile(base.TestCase):
         fd = six.StringIO(DESCR2)
         tables = {}
         self.assertRaises(
-            datalog_source.Z3SourceError, source.loadDescription,
+            obase.Z3SourceError, source.loadDescription,
             tables, "file", fd)

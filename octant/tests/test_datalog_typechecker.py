@@ -21,6 +21,7 @@ test_datalog_typechecker
 Tests for `datalog_typecheker` module.
 """
 
+from octant import base as obase
 from octant import datalog_parser as parser
 from octant import datalog_typechecker as typechecker
 from octant.tests import base
@@ -97,13 +98,13 @@ class TestTypechecker(base.TestCase):
     def test_bad_compare(self):
         prog = parser.wrapped_parse(PROG4)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
 
     def test_bad_operation(self):
         prog = parser.wrapped_parse(PROG5)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
 
     def test_sub_operation(self):
@@ -115,23 +116,23 @@ class TestTypechecker(base.TestCase):
     def test_clash_on_expr(self):
         prog = parser.wrapped_parse(PROG7)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
 
     def test_arity_check(self):
         prog = parser.wrapped_parse(PROG8)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
 
     def test_constraint_check(self):
         prog = parser.wrapped_parse(PROG9)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
 
     def test_atom_column(self):
         prog = parser.wrapped_parse(PROG10)
         self.assertRaises(
-            typechecker.Z3TypeError,
+            obase.Z3TypeError,
             lambda: typechecker.type_theory(prog, {}, MockSource({})))
