@@ -18,7 +18,6 @@ import itertools
 import logging
 import six
 
-from octant import base
 from octant import datalog_ast as ast
 from octant import datalog_primitives as primitives
 
@@ -562,7 +561,8 @@ class Unfolding(object):
                 simple_types = [p for p in candidate_types if is_disj(p[0])]
                 if simple_types == []:
                     debug("Non simple types %s", candidate_types)
-                    raise base.Z3NotWellFormed('Cannot handle non simple yet.')
+                    debug("Plan may be incomplete.")
+                    return plan
 
             def by_occ(p):
                 return occurrence(p[0])
