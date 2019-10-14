@@ -35,6 +35,7 @@ from octant import datalog_source as source
 from octant import datalog_typechecker as typechecker
 from octant import datalog_unfolding as unfolding
 from octant import options
+from octant import source_file
 from octant import source_openstack
 from octant import source_skydive
 from octant import z3_comparison as z3c
@@ -49,6 +50,7 @@ class Z3Theory(object):
         self.datasource = source.Datasource(primitives.TYPES)
         source_openstack.register(self.datasource)
         source_skydive.register(self.datasource)
+        source_file.register(self.datasource)
 
         self.compiler = (
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
@@ -277,6 +279,9 @@ def main():
         sys.exit(1)
     except typechecker.Z3TypeError as exc:
         print("Type error: {}".format(exc.args[1]))
+        sys.exit(1)
+    except source.Z3SourceError as exc:
+        print("Error in datasource: {}".format(exc.args[1]))
         sys.exit(1)
     except parser.Z3ParseError:
         print("Parser error in query.")

@@ -88,7 +88,8 @@ class Z3Compiler(object):
         new_rules = []
         for rule in self.rules:
             if self.datasource.is_extensible(rule.head):
-                raise Z3NotWellFormed("No base predicate allowed in head.")
+                raise Z3NotWellFormed("No base predicate allowed in head: " +
+                                      rule.head.table)
             for i, atom in enumerate(rule.body):
                 if not self.datasource.is_extensible(atom):
                     continue

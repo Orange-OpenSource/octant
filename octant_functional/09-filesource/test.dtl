@@ -1,0 +1,3 @@
+
+r(X,Y) :- c(s=X,d=Y).
+r(X,Z) :- c(s=X,d=Y),r(Y,Z).

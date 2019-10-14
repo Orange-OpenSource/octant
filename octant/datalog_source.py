@@ -27,6 +27,13 @@ from octant import datalog_typechecker as typechecker
 TableAccessor = namedtuple('TableAccessor', ['session', 'access', 'fields'])
 
 
+class Z3SourceError(Exception):
+    """Raised when a source or its description is wrong"""
+
+    def __init__(self, *args, **kwargs):
+        super(Z3SourceError, self).__init__(self, *args, **kwargs)
+
+
 class Datasource(object):
     """Represents the source of facts used by the Datalog interpreter
 
