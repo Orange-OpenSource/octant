@@ -148,7 +148,8 @@ class Z3Theory(object):
         """Compiles an atom to Z3"""
         args = [self.compile_expr(variables, expr, env) for expr in atom.args]
         if primitives.is_primitive(atom):
-            compiled_atom = primitives.COMPARISON[atom.table](args)
+            compiled_atom = z3.simplify(
+                primitives.COMPARISON[atom.table](args))
         else:
             relation = self.relations[atom.table]
             compiled_atom = relation(*args)
