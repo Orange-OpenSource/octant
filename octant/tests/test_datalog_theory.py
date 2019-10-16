@@ -74,6 +74,8 @@ def standard_cfg(mock_cfg):
     mock_cfg.restore = None
     mock_cfg.save = None
     mock_cfg.debug = False
+    mock_cfg.smt2 = None
+    mock_cfg.filesource = []
 
 
 class TestDatalogTheory(base.TestCase):

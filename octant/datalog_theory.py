@@ -181,6 +181,17 @@ class Z3Theory(object):
                 self.build_rule(rule, {})
         z3c.register(self.context)
         logging.getLogger().debug("Compiled rules:\n%s", self.context)
+        if cfg.CONF.smt2 is not None:
+            with open(cfg.CONF.smt2, 'w') as fd:
+                self.dump_primitive_tables(fd)
+                primitives.dump_translations(fd)
+                fd.write(str(self.context))
+
+    def dump_primitive_tables(self, fd):
+        fd.write("; *** primitive table declarations ***\n\n")
+        for table_name, fields in six.iteritems(
+                self.compiler.extensible_tables):
+            fd.write("; {}({})\n".format(table_name, ",".join(fields)))
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""

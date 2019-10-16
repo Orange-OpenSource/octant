@@ -52,6 +52,9 @@ CLI_OPTIONS = [
         help="Description of a file source (to use witha backup)"),
     cfg.StrOpt('save', default=None, help='Create a backup file'),
     cfg.StrOpt(
+        'smt2', default=None,
+        help='Optional file to save rules in SMT2 format'),
+    cfg.StrOpt(
         'restore', default=None,
         help='Use a backup file instead of a connection'),
     cfg.BoolOpt('pretty', default=False, help="Pretty prints results."),

@@ -54,6 +54,13 @@ class Z3Type(object):
         """Transforms back a string to a raw OpenStack value."""
         raise NotImplementedError
 
+    def dump(self):
+        """Optional content dump
+
+        Gives back an iterator describing the internal translation database.
+        """
+        return None
+
     def type(self):
         """Gives back the Z3 type"""
         return self.type_instance
@@ -96,6 +103,11 @@ class StringType(Z3Type):
         self.map[val] = bvect
         self.back[code] = val
         return bvect
+
+    def dump(self):
+        return (
+            "; {} -> {}\n".format(z3.sexpr(), val)
+            for (val, z3) in six.iteritems(self.map))
 
     def marshall(self, val):
         return MARSHALLED_NONE if val is None else val
@@ -214,6 +226,16 @@ def ip_of_cidr(cidr):
     return (
         u'0.0.0.0' if cidr is None
         else ipaddress.ip_interface(six.text_type(cidr)).ip.compressed)
+
+
+def dump_translations(fd):
+    """Dumps the contents of translation tables as SMT2 comments"""
+    for typ in TYPES.values():
+        iterator = typ.dump()
+        if iterator is not None:
+            fd.write("; *** {} ***\n".format(typ.name))
+            for line in iterator:
+                fd.write(line)
 
 
 Operation = collections.namedtuple(
