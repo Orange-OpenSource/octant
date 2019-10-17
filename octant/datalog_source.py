@@ -147,7 +147,7 @@ class Datasource(object):
         if table_name in self.datasources:
             accessor = self.datasources[table_name]
             if use_cache:
-                (index, objs) = self.backup.get(table_name, [])
+                (index, objs) = self.backup.get(table_name, ([], []))
             else:
                 index = None
                 objs = accessor.access(accessor.session)
