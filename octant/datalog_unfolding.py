@@ -561,7 +561,8 @@ class Unfolding(object):
                 simple_types = [p for p in candidate_types if is_disj(p[0])]
                 if simple_types == []:
                     debug("Non simple types %s", candidate_types)
-                    raise Exception('Cannot handle non simple yet.')
+                    debug("Plan may be incomplete.")
+                    return plan
 
             def by_occ(p):
                 return occurrence(p[0])

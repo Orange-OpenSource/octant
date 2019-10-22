@@ -26,10 +26,9 @@ import mock
 import six
 import sys
 
-from octant import datalog_compiler as compiler
+from octant import base as obase
 from octant import datalog_parser as parser
 from octant import datalog_theory as theory
-from octant import datalog_typechecker as typechecker
 from octant.tests import base
 from octant import z3_result as z3r
 
@@ -75,6 +74,8 @@ def standard_cfg(mock_cfg):
     mock_cfg.restore = None
     mock_cfg.save = None
     mock_cfg.debug = False
+    mock_cfg.smt2 = None
+    mock_cfg.filesource = []
 
 
 class TestDatalogTheory(base.TestCase):
@@ -95,15 +96,15 @@ class TestDatalogTheory(base.TestCase):
     def test_query_bad(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
-        self.assertRaises(compiler.Z3NotWellFormed, lambda: theo.query("h(X)"))
+        self.assertRaises(obase.Z3NotWellFormed, lambda: theo.query("h(X)"))
         self.assertRaises(
-            compiler.Z3NotWellFormed, lambda: theo.query("p(X,Y)"))
+            obase.Z3NotWellFormed, lambda: theo.query("p(X,Y)"))
 
     @mock.patch("octant.source_openstack.register")
     @mock.patch("octant.source_skydive.register")
     def test_build_bad(self, src1, src2):
         theo = theory.Z3Theory(pp("p(X:ukw_type)."))
-        self.assertRaises(typechecker.Z3TypeError, theo.build_theory)
+        self.assertRaises(obase.Z3TypeError, theo.build_theory)
 
     @mock.patch("octant.source_openstack.register")
     @mock.patch("octant.source_skydive.register")

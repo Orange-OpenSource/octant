@@ -21,7 +21,7 @@ from six import moves
 import sys
 import z3
 
-from octant import datalog_compiler as compiler
+from octant import base
 
 
 class Any(object):
@@ -65,13 +65,13 @@ class Cube(object):
 class Doc(object):
     """Difference of cubes"""
 
-    def __init__(self, base, diffs):
+    def __init__(self, bas, diffs):
         """constructor for difference of cubes
 
         :param base: the base cube
         :param diffs: the array of cubes substracted from the base
         """
-        self.base = base
+        self.base = bas
         self.diffs = diffs
 
     def __repr__(self):
@@ -136,7 +136,7 @@ def extract_equal(eq):
                 value=z3.BitVecVal(val, sort),
                 mask=z3.BitVecVal(mask, sort))
         else:
-            raise compiler.Z3NotWellFormed(
+            raise base.Z3NotWellFormed(
                 "Bad lhs for equal  {}".format(eq))
 
 
@@ -188,7 +188,7 @@ def extract_and(item, types):
     elif kind == z3.Z3_OP_EQ or kind == z3.Z3_OP_NOT:
         return split_cubes([item], types)
     else:
-        raise compiler.Z3NotWellFormed(
+        raise base.Z3NotWellFormed(
             "Bad result  {}: {}".format(item, kind))
 
 
@@ -207,7 +207,7 @@ def z3_to_array(expr, types):
     elif kind == z3.Z3_OP_TRUE:
         return True
     else:
-        raise compiler.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
+        raise base.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
 
 
 def print_pretty(vars, answers):

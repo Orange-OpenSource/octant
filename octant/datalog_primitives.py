@@ -54,6 +54,13 @@ class Z3Type(object):
         """Transforms back a string to a raw OpenStack value."""
         raise NotImplementedError
 
+    def dump(self):
+        """Optional content dump
+
+        Gives back an iterator describing the internal translation database.
+        """
+        return None
+
     def type(self):
         """Gives back the Z3 type"""
         return self.type_instance
@@ -97,6 +104,11 @@ class StringType(Z3Type):
         self.back[code] = val
         return bvect
 
+    def dump(self):
+        return (
+            "; {} -> {}\n".format(z3.sexpr(), val)
+            for (val, z3) in six.iteritems(self.map))
+
     def marshall(self, val):
         return MARSHALLED_NONE if val is None else val
 
@@ -128,16 +140,11 @@ class NumType(Z3Type):
         return val.as_long()
 
 
-# I intend to use Z3 conventions for sorts.
-# pylint: disable=invalid-name
-IpAddressSort = z3.BitVecSort(32)
-
-
 class IpAddressType(Z3Type):
     """Transcode IP address in Z3"""
 
-    def __init__(self):
-        super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
+    def __init__(self, size=32):
+        super(IpAddressType, self).__init__('ipaddress', z3.BitVecSort(size))
 
     def to_z3(self, val):
         return z3.BitVecVal(int(ipaddress.ip_address(six.text_type(val))),
@@ -162,6 +169,7 @@ TYPES = {
     'int4': NumType('int4', size=4),
     'int8': NumType('int8', size=8),
     'int16': NumType('int16', size=16),
+    'int24': NumType('int24', size=24),
     'direction': StringType('direction', size=2),
     'status': StringType('status', size=3),
     'ip_address': IpAddressType(),
@@ -213,6 +221,16 @@ def ip_of_cidr(cidr):
     return (
         u'0.0.0.0' if cidr is None
         else ipaddress.ip_interface(six.text_type(cidr)).ip.compressed)
+
+
+def dump_translations(fd):
+    """Dumps the contents of translation tables as SMT2 comments"""
+    for typ in TYPES.values():
+        iterator = typ.dump()
+        if iterator is not None:
+            fd.write("; *** {} ***\n".format(typ.name))
+            for line in iterator:
+                fd.write(line)
 
 
 Operation = collections.namedtuple(

@@ -21,17 +21,9 @@ import csv
 
 from oslo_config import cfg
 
-from octant import datalog_compiler as compiler
-from octant import datalog_typechecker as typechecker
+from octant import base
 
 TableAccessor = namedtuple('TableAccessor', ['session', 'access', 'fields'])
-
-
-class Z3SourceError(Exception):
-    """Raised when a source or its description is wrong"""
-
-    def __init__(self, *args, **kwargs):
-        super(Z3SourceError, self).__init__(self, *args, **kwargs)
 
 
 class Datasource(object):
@@ -125,12 +117,12 @@ class Datasource(object):
         if table in self.datasources:
             prim = self.datasources[table].fields
         else:
-            raise typechecker.Z3TypeError(
+            raise base.Z3TypeError(
                 "Unknown extensible table {}".format(table))
         try:
             args = [prim[field][0] for field in fields]
         except KeyError as exc:
-            raise typechecker.Z3TypeError(
+            raise base.Z3TypeError(
                 "Unknown field {} in table {}".format(exc.args[0], table))
         return args
 
@@ -155,12 +147,12 @@ class Datasource(object):
         if table_name in self.datasources:
             accessor = self.datasources[table_name]
             if use_cache:
-                (index, objs) = self.backup.get(table_name, [])
+                (index, objs) = self.backup.get(table_name, ([], []))
             else:
                 index = None
                 objs = accessor.access(accessor.session)
         else:
-            raise typechecker.Z3TypeError(
+            raise base.Z3TypeError(
                 'Unknown primitive relation {}'.format(table_name))
 
         def get_field(field):
@@ -168,7 +160,7 @@ class Datasource(object):
             try:
                 type_name, access = accessor.fields[field]
             except KeyError:
-                raise typechecker.Z3TypeError(
+                raise base.Z3TypeError(
                     'Unknown field {} in {}'.format(field, table_name))
             type_field = self.types[type_name]
             return (type_field.to_z3, access, type_field.marshall)
@@ -180,7 +172,7 @@ class Datasource(object):
             try:
                 pos = index.index(field)
             except ValueError:
-                raise compiler.Z3NotWellFormed(
+                raise base.Z3NotWellFormed(
                     "Field {} was not saved for table {}".format(
                         field,
                         table_name))

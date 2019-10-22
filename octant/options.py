@@ -52,6 +52,9 @@ CLI_OPTIONS = [
         help="Description of a file source (to use witha backup)"),
     cfg.StrOpt('save', default=None, help='Create a backup file'),
     cfg.StrOpt(
+        'smt2', default=None,
+        help='Optional file to save rules in SMT2 format'),
+    cfg.StrOpt(
         'restore', default=None,
         help='Use a backup file instead of a connection'),
     cfg.BoolOpt('pretty', default=False, help="Pretty prints results."),
@@ -59,7 +62,9 @@ CLI_OPTIONS = [
     cfg.BoolOpt(
         'time', default=False, help="Print timing of the different phases."),
     cfg.BoolOpt('debug', default=False, help="Set loglevel to debug"),
-    cfg.BoolOpt('doc', default=False, help="Uses Difference of Cubes")
+    cfg.BoolOpt('doc', default=False, help="Uses Difference of Cubes (DoC)"),
+    cfg.BoolOpt('unfold', default=True, help="Unfolds when using DoC"),
+    cfg.IntOpt('ipsize', default=32, help='Size of IP address (for test only)')
 ]
 
 cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')

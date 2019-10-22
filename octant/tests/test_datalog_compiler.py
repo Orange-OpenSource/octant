@@ -19,6 +19,7 @@ test_datalog_compiler
 Tests for `datalog_compiler` module which preprocess Datalog rules.
 '''
 
+from octant import base as obase
 from octant import datalog_ast as ast
 from octant import datalog_compiler as compiler
 from octant import datalog_parser as parser
@@ -98,7 +99,7 @@ class TestCompiler(base.TestCase):
             'b': ast.NumConstant(2),
             'c': ast.NumConstant(0)}
         comp = compiler.Z3Compiler(rules, constants, None)
-        self.assertRaises(compiler.Z3NotWellFormed, comp.substitute_constants)
+        self.assertRaises(obase.Z3NotWellFormed, comp.substitute_constants)
 
     def test_flatten(self):
         ast.Rule.rule_counter = 0

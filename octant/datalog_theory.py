@@ -27,12 +27,12 @@ import z3
 
 from oslo_config import cfg
 
+from octant import base
 from octant import datalog_ast as ast
 from octant import datalog_compiler as compiler
 from octant import datalog_parser as parser
 from octant import datalog_primitives as primitives
 from octant import datalog_source as source
-from octant import datalog_typechecker as typechecker
 from octant import datalog_unfolding as unfolding
 from octant import options
 from octant import source_file
@@ -86,7 +86,7 @@ class Z3Theory(object):
                     self.datasource.types[typename].type()
                     for typename in arg_types]
             except KeyError as exc:
-                raise typechecker.Z3TypeError(
+                raise base.Z3TypeError(
                     "Unknown type {} found for {}: {}".format(
                         exc.args[0],
                         name,
@@ -141,14 +141,15 @@ class Z3Theory(object):
             return operator(
                 *(self.compile_expr(variables, arg, env) for arg in expr.args))
         else:
-            raise compiler.Z3NotWellFormed(
+            raise base.Z3NotWellFormed(
                 "cannot proceed with {}".format(expr))
 
     def compile_atom(self, variables, atom, env):
         """Compiles an atom to Z3"""
         args = [self.compile_expr(variables, expr, env) for expr in atom.args]
         if primitives.is_primitive(atom):
-            compiled_atom = primitives.COMPARISON[atom.table](args)
+            compiled_atom = z3.simplify(
+                primitives.COMPARISON[atom.table](args))
         else:
             relation = self.relations[atom.table]
             compiled_atom = relation(*args)
@@ -166,7 +167,7 @@ class Z3Theory(object):
 
     def build_rules(self):
         """Compiles rules to Z3"""
-        if cfg.CONF.doc:
+        if cfg.CONF.doc and cfg.CONF.unfold:
             plan = self.compiler.unfold_plan
             env = unfolding.environ_from_plan(plan)
         else:
@@ -180,17 +181,28 @@ class Z3Theory(object):
                 self.build_rule(rule, {})
         z3c.register(self.context)
         logging.getLogger().debug("Compiled rules:\n%s", self.context)
+        if cfg.CONF.smt2 is not None:
+            with open(cfg.CONF.smt2, 'w') as fd:
+                self.dump_primitive_tables(fd)
+                primitives.dump_translations(fd)
+                fd.write(str(self.context))
+
+    def dump_primitive_tables(self, fd):
+        fd.write("; *** primitive table declarations ***\n\n")
+        for table_name, fields in six.iteritems(
+                self.compiler.extensible_tables):
+            fd.write("; {}({})\n".format(table_name, ",".join(fields)))
 
     def query(self, str_query):
         """Query a relation on the compiled theory"""
         atom = parser.parse_atom(str_query)
         self.compiler.substitutes_constants_in_array(atom.args)
         if atom.table not in self.compiler.typed_tables:
-            raise compiler.Z3NotWellFormed(
+            raise base.Z3NotWellFormed(
                 "Unknown relation {}".format(atom.table))
         atom.types = self.compiler.typed_tables[atom.table]
         if len(atom.types) != len(atom.args):
-            raise compiler.Z3NotWellFormed(
+            raise base.Z3NotWellFormed(
                 "Arity of predicate inconsistency in {}".format(atom))
         for i in moves.xrange(len(atom.types)):
             atom.args[i].type = atom.types[i]
@@ -237,6 +249,9 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     args = sys.argv[1:]
     options.init(args)
+    if cfg.CONF.ipsize != 32:
+        primitives.TYPES['ip_address'] = (
+            primitives.IpAddressType(size=cfg.CONF.ipsize))
     time_required = cfg.CONF.time
     csv_out = cfg.CONF.csv
     pretty = cfg.CONF.pretty
@@ -251,7 +266,7 @@ def main():
     try:
         for rule_file in cfg.CONF.theory:
             rules += parser.parse_file(rule_file)
-    except parser.Z3ParseError as exc:
+    except base.Z3ParseError as exc:
         print(exc.args[1])
         sys.exit(1)
     if time_required:
@@ -274,16 +289,16 @@ def main():
                     cfg.CONF.pretty)
         if not csv_out:
             print("*" * 80)
-    except compiler.Z3NotWellFormed as exc:
+    except base.Z3NotWellFormed as exc:
         print("Badly formed program: {}".format(exc.args[1]))
         sys.exit(1)
-    except typechecker.Z3TypeError as exc:
+    except base.Z3TypeError as exc:
         print("Type error: {}".format(exc.args[1]))
         sys.exit(1)
-    except source.Z3SourceError as exc:
+    except base.Z3SourceError as exc:
         print("Error in datasource: {}".format(exc.args[1]))
         sys.exit(1)
-    except parser.Z3ParseError:
+    except base.Z3ParseError:
         print("Parser error in query.")
         sys.exit(1)
 

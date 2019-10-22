@@ -27,7 +27,7 @@ import sys
 import textwrap
 import z3
 
-from octant import datalog_compiler as compiler
+from octant import base as obase
 from octant import datalog_primitives as primitives
 from octant.tests import base
 from octant import z3_result as z3r
@@ -84,10 +84,10 @@ class TestZ3Result(base.TestCase):
         x = z3.Const('x', s)
         types = [primitives.TYPES['int4']]
         self.assertRaises(
-            compiler.Z3NotWellFormed,
+            obase.Z3NotWellFormed,
             lambda: z3r.z3_to_array(x, types))
         self.assertRaises(
-            compiler.Z3NotWellFormed,
+            obase.Z3NotWellFormed,
             lambda: z3r.z3_to_array(z3.Or(x > 2, x < 1), types))
 
     def test_z3_to_array_doc(self):

@@ -1,0 +1,149 @@
+##################### UTILITIES ##########################
+
+############################### CORE ##############################
+# DN1 can connect to DN2 over port number PN for protocole PRO.
+# A route exists and security groups allow the connection.
+connect(DN1, DN2, PN2, PRO) :-
+    server(name=DN1, id=D1),
+    server(name=DN2, id=D2),
+    attached_ip(SN, D1, P1, IP1),
+    visible(SN, D2, P2, IP2),
+    port_sg(port_id=P1, sg_id=SG1),
+    port_sg(port_id=P2, sg_id=SG2),
+    allow_traffic(IP1, IP2, PN2, PRO, SG1, SG2, P1, P2).
+
+attached(D, N, SN) :-
+    port(id=P, device_id=D, network_id=N),
+    port_ip(port_id=P, subnet_id=SN).
+
+attached_ip(SN, D, P, IP) :-
+    port(id=P, device_id=D),
+    port_ip(port_id=P, subnet_id=SN, ip=IP).
+
+p(X,Y) :- port(id=X, device_id=Y).
+q(P,SN,IP) :- port_ip(port_id=P, subnet_id=SN, ip=IP).
+
+# Device D is visible from subnet SN if one of its port (and ip) is visible.
+visible(SN, D, P, DIP) :-
+    port_ip(subnet_id=SN1, ip=DIP, port_id=P),
+    port(device_id=D, id=P),
+    visible_ip(SN, SN1, DIP).
+
+
+# Ip IP is visible from SN if it is on SN.
+# We must keep the subnet where the IP is seen (last parameter) as We
+# can have the same IP multiple times on a given cloud.
+visible_ip(SN, SN, DIP) :-
+    port_ip(subnet_id=SN, ip=DIP).
+
+# ip IP on SN1 is visible from subnet SN
+# Gateway case.
+visible_ip(SN, SN1, DIP) :-
+    gateway(SN, P, R),
+    !match_subnet(SN, DIP),
+    visible_router(R, SN1, DIP).
+
+# ip IP on SN1 is visible from subnet SN
+# Other route case.
+visible_ip(SN, SN1, DIP) :-
+    subnet_route(subnet_id=SN, dest_prefix=DPR, dest_mask=DM, next_hop=HP),
+    DPR = DIP & DM,
+    !better_match_subnet(SN, DM, DIP),
+    port_ip(port_id=P, ip=HP, subnet_id=SN),
+    port(id=P, device_id=R2),
+    visible_router(R2, SN1, DIP).
+
+#IP ip on SN is visible from router R
+visible_router(R, SN, DIP) :-
+    port_ip(subnet_id=SN, ip=DIP),
+    router(id=R),
+    attached(R, N, SN).
+
+visible_router(R, SN, DIP) :-
+    port_ip(subnet_id=SN, ip=DIP),
+    router_route(router_id=R, dest_prefix=DPR, dest_mask=DM, next_hop=HP),
+    DPR = DIP & DM,
+    !better_match_router(R, DM, DIP),
+    port_ip(subnet_id=SN2, ip=HP, port_id=P),
+    port(id=P, device_id=R2),
+    attached(R, N, SN2),
+    visible_router(R2, SN, DIP).
+
+# R is the default gateway for SN with port P.
+gateway(SN, P, R) :-
+    subnet(id=SN, gateway_ip=IP),
+    !IP=0.0.0.0,
+    port_ip(port_id=P, ip=IP, subnet_id=SN),
+    port(id=P, device_id=R, network_id=N).
+
+# true if there is a route for ip IP on router R that is more specific
+# than the mask M provided.
+better_match_router(R, M, IP) :-
+    router_route(dest_prefix=RP, dest_mask=RM, router_id=R),
+    RP = IP & RM,
+    RM > M.
+
+# true if there is a route for ip IP on subnet SN used for default gateway.
+match_subnet(SN, IP) :-
+    subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
+    RP = IP & RM.
+
+# true if there is a route for ip IP on subnet SN that is more specific
+# than the mask M provided.
+better_match_subnet(SN, M, IP) :-
+    subnet_route(dest_prefix=RP, dest_mask=RM, subnet_id=SN),
+    RP = IP & RM,
+    RM > M.
+
+###################### SECURITY GROUPS ######################
+
+# Traffic allowed if an egress and an ingress allow it
+# Beware that filtering is always done on destination port
+# whatever is the direction of the rule.
+allow_traffic(IP1, IP2, PN, PRO, SG1, SG2, P1, P2) :-
+    rule(id=R1, direction=egress, security_group_id=SG1),
+    rule(id=R2, direction=ingress, security_group_id=SG2),
+    ok_rule(R1, IP2, PN, PRO, P2),
+    ok_rule(R2, IP1, PN, PRO, P1).
+
+# ok_rule checks that a rule allows some kind of traffic.
+# PRO is the protocol and PN is the protocol port number.
+# We do not handle ICMP types and code.
+# P is the Openstack port on the other end. we must check
+ok_rule(R, IP, PN, PRO, P) :-
+    rule(id=R, ip_version=ipv4,
+         remote_ip_prefix=RP, remote_ip_mask=RM, port_range_min=MI,
+         port_range_max=MA),
+    RP = IP & RM,
+    PN >= MI,
+    MA >= PN,
+    ok_rule_protocol(R, PRO),
+    ok_rule_sec_group(R, P).
+
+# if not present, CIDR has been transformed into a catch-all (0.0.0.0/0)
+# by preprocessing.
+ok_rule_ip(R, IP) :-
+    rule(id=R, ip_version=ipv4, remote_ip_prefix = RP, remote_ip_mask = RM),
+    RP = IP & RM.
+
+# A rule match the protocol, if it specifies this protocol or nothing.
+# Nothing is expressed by "". Warning: this may fail if a protocol has several
+# names (eg numeric version and symbolic one).
+ok_rule_protocol(R, PRO) :-
+    rule(id=R, protocol=PRO).
+
+ok_rule_protocol(R, PRO) :-
+    rule(id=R, protocol="").
+
+# A rule match the security group of the opposite end if it specifies this
+# sec group or nothing (captured by none id). Caveat: this security group may
+# be different from the one that allow the traffic on the other end. That is
+# why we need P here.
+ok_rule_sec_group(R, P) :-
+    rule(id=R, remote_group_id=SG),
+    port_sg(port_id=P, sg_id=SG).
+
+ok_rule_sec_group(R, SG) :-
+    rule(id=R, remote_group_id=none).
+
+result(X) :- connect("M1", X, 80, "tcp").
