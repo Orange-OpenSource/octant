@@ -167,7 +167,7 @@ class Z3Theory(object):
 
     def build_rules(self):
         """Compiles rules to Z3"""
-        if cfg.CONF.doc:
+        if cfg.CONF.doc and cfg.CONF.unfold:
             plan = self.compiler.unfold_plan
             env = unfolding.environ_from_plan(plan)
         else:
@@ -249,6 +249,9 @@ def main():
     logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     args = sys.argv[1:]
     options.init(args)
+    if cfg.CONF.ipsize != 32:
+        primitives.TYPES['ip_address'] = (
+            primitives.IpAddressType(size=cfg.CONF.ipsize))
     time_required = cfg.CONF.time
     csv_out = cfg.CONF.csv
     pretty = cfg.CONF.pretty

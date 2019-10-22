@@ -62,7 +62,9 @@ CLI_OPTIONS = [
     cfg.BoolOpt(
         'time', default=False, help="Print timing of the different phases."),
     cfg.BoolOpt('debug', default=False, help="Set loglevel to debug"),
-    cfg.BoolOpt('doc', default=False, help="Uses Difference of Cubes")
+    cfg.BoolOpt('doc', default=False, help="Uses Difference of Cubes (DoC)"),
+    cfg.BoolOpt('unfold', default=True, help="Unfolds when using DoC"),
+    cfg.IntOpt('ipsize', default=32, help='Size of IP address (for test only)')
 ]
 
 cfg.CONF.register_opts(OPENSTACK_OPTIONS, group='openstack')

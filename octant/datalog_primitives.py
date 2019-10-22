@@ -140,16 +140,11 @@ class NumType(Z3Type):
         return val.as_long()
 
 
-# I intend to use Z3 conventions for sorts.
-# pylint: disable=invalid-name
-IpAddressSort = z3.BitVecSort(32)
-
-
 class IpAddressType(Z3Type):
     """Transcode IP address in Z3"""
 
-    def __init__(self):
-        super(IpAddressType, self).__init__('ipaddress', IpAddressSort)
+    def __init__(self, size=32):
+        super(IpAddressType, self).__init__('ipaddress', z3.BitVecSort(size))
 
     def to_z3(self, val):
         return z3.BitVecVal(int(ipaddress.ip_address(six.text_type(val))),
