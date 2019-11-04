@@ -22,7 +22,7 @@ Tests File (backup) datasource
 import six
 
 from octant import base as obase
-from octant import source_file as source
+from octant.source import file as source
 from octant.tests import base
 
 

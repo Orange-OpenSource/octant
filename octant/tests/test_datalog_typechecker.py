@@ -22,8 +22,8 @@ Tests for `datalog_typecheker` module.
 """
 
 from octant import base as obase
-from octant import datalog_parser as parser
-from octant import datalog_typechecker as typechecker
+from octant.datalog import typechecker
+from octant import parser
 from octant.tests import base
 
 

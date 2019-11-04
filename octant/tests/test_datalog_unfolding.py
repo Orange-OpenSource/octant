@@ -16,9 +16,9 @@
 
 """Tests for datalog_unfolding module"""
 
-from octant import datalog_ast as ast
-from octant import datalog_parser as parser
-from octant import datalog_unfolding as unfolding
+from octant import ast
+from octant.datalog import unfolding
+from octant import parser
 from octant.tests import base
 
 

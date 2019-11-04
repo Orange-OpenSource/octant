@@ -28,7 +28,7 @@ import textwrap
 import z3
 
 from octant import base as obase
-from octant import datalog_primitives as primitives
+from octant import primitives
 from octant.tests import base
 from octant import z3_result as z3r
 

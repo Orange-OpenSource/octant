@@ -19,7 +19,7 @@ import ipaddress
 import six
 import z3
 
-from octant import datalog_ast as ast
+from octant import ast
 from octant import z3_comparison as z3c
 
 

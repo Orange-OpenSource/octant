@@ -84,7 +84,7 @@ class TestDatalogFile(unittest.TestCase):
         # os.path.join(self.dirpath, 'out.csv')
         with open(os.path.join(self.dirpath, 'query.dtl'), 'r') as query_file:
             query = query_file.read().strip(' \t\n')
-        cmd = ("{} -m octant.datalog_theory --csv{}{}{}"
+        cmd = ("{} -m octant.main --csv{}{}{}"
                " --theory {} --query '{}' > {}").format(
                    sys.executable,
                    opt_config,

@@ -18,8 +18,8 @@ import itertools
 import logging
 import six
 
-from octant import datalog_ast as ast
-from octant import datalog_primitives as primitives
+from octant import ast
+from octant import primitives
 
 
 class UFType(object):
@@ -60,7 +60,7 @@ class UFGround(UFType):
 
     .. py:attribute:: table:
 
-        table defining the ground term (str)
+        table of the EDB defining the ground term (str)
 
     .. py:attribute:: occurrence:
 
@@ -550,8 +550,7 @@ class Unfolding(object):
             candidate_types = [
                 (t, v)
                 for v in candidate_vars
-                for t in simplify_to_ground_types(
-                    self.var_types.get(v, []))
+                for t in simplify_to_ground_types(self.var_types.get(v, []))
             ]
             simple_types = [p for p in candidate_types if is_ground(p[0])]
             debug("Simple types for problem\n:%s", simple_types)

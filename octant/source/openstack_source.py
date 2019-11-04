@@ -23,7 +23,7 @@ from neutronclient.v2_0 import client as neutronclient
 from openstack import connection
 from oslo_config import cfg
 
-from octant import datalog_primitives as primitives
+from octant import primitives
 
 
 def normalize_status(raw):
