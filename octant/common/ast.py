@@ -292,6 +292,11 @@ class Constant(AST):
     def pin_variables(self, rule_id):
         pass
 
+    def variables(self):
+        """Free variables (default is none)"""
+        # pylint: disable=no-self-use
+        return set()
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return other.name == self.name
