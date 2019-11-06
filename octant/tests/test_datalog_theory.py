@@ -25,8 +25,8 @@ import mock
 
 from octant.common import base as obase
 from octant.datalog import theory
+from octant.datalog import z3_result as z3r
 from octant.front import parser
-from octant.front import z3_result as z3r
 from octant.tests import base
 
 
@@ -60,9 +60,9 @@ class TestDatalogTheory(base.TestCase):
     def test_build_theory_simple(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
-        r = theo.query("p(X)")
+        r = theo.query(parser.parse_atom("p(X)"))
         self.assertEqual((['X'], [z3r.Cube({0: 3})]), r)
-        r = theo.query("q(X)")
+        r = theo.query(parser.parse_atom("q(X)"))
         self.assertEqual((['X'], [z3r.Cube({0: 2}), z3r.Cube({0: 3})]), r)
 
     @mock.patch("octant.source.openstack_source.register")
@@ -70,9 +70,12 @@ class TestDatalogTheory(base.TestCase):
     def test_query_bad(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
-        self.assertRaises(obase.Z3NotWellFormed, lambda: theo.query("h(X)"))
         self.assertRaises(
-            obase.Z3NotWellFormed, lambda: theo.query("p(X,Y)"))
+            obase.Z3NotWellFormed,
+            lambda: theo.query(parser.parse_atom("h(X)")))
+        self.assertRaises(
+            obase.Z3NotWellFormed,
+            lambda: theo.query(parser.parse_atom("p(X,Y)")))
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
@@ -85,8 +88,8 @@ class TestDatalogTheory(base.TestCase):
     def test_simple_result(self, src1, src2):
         theo = theory.Z3Theory(pp("p(). q() :- !p()."))
         theo.build_theory()
-        self.assertEqual(([], True), theo.query("p()"))
-        self.assertEqual(([], False), theo.query("q()"))
+        self.assertEqual(([], True), theo.query(parser.parse_atom("p()")))
+        self.assertEqual(([], False), theo.query(parser.parse_atom("q()")))
 
     @mock.patch("octant.source.openstack_source.register", new=mocked_register)
     @mock.patch("octant.source.skydive_source.register")
@@ -95,4 +98,4 @@ class TestDatalogTheory(base.TestCase):
         theo.build_theory()
         self.assertEqual(
             (['X'], [z3r.Cube({0: 421}), z3r.Cube({0: 567})]),
-            theo.query("p(X)"))
+            theo.query(parser.parse_atom("p(X)")))

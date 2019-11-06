@@ -27,7 +27,7 @@ from octant.common import primitives
 from octant.datalog import theory as datalog_theory
 from octant.front import options
 from octant.front import parser
-from octant.front import z3_result as z3r
+from octant.front import printer
 
 
 def print_result(query, variables, answers, time_used, show_pretty):
@@ -39,7 +39,7 @@ def print_result(query, variables, answers, time_used, show_pretty):
     print("-" * 80)
     if show_pretty:
         if isinstance(answers, list):
-            z3r.print_pretty(variables, answers)
+            printer.print_pretty(variables, answers)
         else:
             print('   ' + str(answers))
     else:
@@ -84,9 +84,10 @@ def main():
             print("Data retrieval: {}".format(time.clock() - start))
         for query in cfg.CONF.query:
             start = time.clock()
-            variables, answers = theory.query(query)
+            atom = parser.parse_atom(query)
+            variables, answers = theory.query(atom)
             if csv_out:
-                z3r.print_csv(variables, answers)
+                printer.print_csv(variables, answers)
             else:
                 print_result(
                     query, variables, answers,

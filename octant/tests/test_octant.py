@@ -16,8 +16,8 @@
 
 import mock
 
+from octant.datalog import z3_result as z3r
 from octant.front import main as octant
-from octant.front import z3_result as z3r
 from octant.tests import base
 
 

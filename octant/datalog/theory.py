@@ -30,8 +30,7 @@ from octant.common import primitives
 from octant.common import z3_comparison as z3c
 from octant.datalog import compiler
 from octant.datalog import unfolding
-from octant.front import parser
-from octant.front import z3_result as z3r
+from octant.datalog import z3_result as z3r
 from octant.source import file
 from octant.source import openstack_source
 from octant.source import skydive_source
@@ -189,9 +188,8 @@ class Z3Theory(object):
                 self.compiler.extensible_tables):
             fd.write("; {}({})\n".format(table_name, ",".join(fields)))
 
-    def query(self, str_query):
+    def query(self, atom):
         """Query a relation on the compiled theory"""
-        atom = parser.parse_atom(str_query)
         self.compiler.substitutes_constants_in_array(atom.args)
         if atom.table not in self.compiler.typed_tables:
             raise base.Z3NotWellFormed(
