@@ -64,6 +64,9 @@ def get_to_solve(rule):
     A primitive predicate with more than one variable will not be handled
     correctly by the difference of cube domain. It must be simplified to
     reach only one free variable.
+
+    :returns: a list of pairs position of atom to simplify and the
+        variable list associated to the atom.
     """
     return [
         (pos, vlist)
@@ -73,7 +76,12 @@ def get_to_solve(rule):
 
 
 def candidates(problems):
-    """Get the set of candidate variables."""
+    """Get the set of candidate variables.
+
+    :param problems: a list of pairs position of atom to simplify and the
+        variable list associated to the atom.
+    :returns: a set of variables.
+    """
     return {var for (_, vl) in problems for var in vl}
 
 
@@ -143,6 +151,13 @@ class Unfolding(object):
                  * a list of variables solved
         """
         debug = logging.getLogger().debug
+        all_vars = rule.body_variables()
+        all_types = {
+            v: [(t, origin.occurrence(t))
+                for t in origin.simplify_to_ground_types(var_types.get(v, []))
+                ]
+            for v in all_vars
+        }
         problems = get_to_solve(rule)
         if problems == []:
             return None
@@ -152,10 +167,9 @@ class Unfolding(object):
             debug("Current problem\n:%s", problems)
             candidate_vars = candidates(problems)
             candidate_types = [
-                (t, v)
+                (pair[0], pair[1], v)
                 for v in candidate_vars
-                for t in origin.simplify_to_ground_types(var_types.get(v, []))
-            ]
+                for pair in all_types.get(v)]
             simple_types = [
                 p for p in candidate_types if origin.is_ground(p[0])]
             debug("Simple types for problem\n:%s", simple_types)
@@ -168,17 +182,21 @@ class Unfolding(object):
                     debug("Non simple types %s", candidate_types)
                     debug("Plan may be incomplete.")
                     return plan
-
-            def by_occ(p):
-                return origin.occurrence(p[0])
-
-            simple_types.sort(key=by_occ)
-            simple_types_by_occ = [
-                (occ, list(grp))
-                for (occ, grp) in itertools.groupby(simple_types, key=by_occ)]
-            simple_types_by_occ.sort(reverse=True, key=lambda p: len(p[1]))
-            debug("Sorted simple types:\n%s", simple_types_by_occ)
-            (_, solved) = simple_types_by_occ[0]
+            simple_occ = list(map(lambda p: p[1], simple_types))
+            simple_occ.sort()
+            simple_occ_count = [
+                (occ, len(list(grp)))
+                for (occ, grp) in itertools.groupby(simple_occ)
+            ]
+            simple_occ_count.sort(reverse=True, key=lambda p: p[1])
+            debug("Sorted simple occs:\n%s", simple_occ_count)
+            occ = simple_occ_count[0][0]
+            solved = [
+                (t, v)
+                for (v, l) in six.iteritems(all_types)
+                for (t, o) in l
+                if o == occ
+            ]
             solved_vars = [pair[1] for pair in solved]
             if is_simple:
                 tspec = ((solved[0][0].table, [t.pos for (t, v) in solved]), )
