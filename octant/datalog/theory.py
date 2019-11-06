@@ -27,9 +27,10 @@ from oslo_config import cfg
 from octant.common import ast
 from octant.common import base
 from octant.common import primitives
-from octant.common import z3_comparison as z3c
 from octant.datalog import compiler
+from octant.datalog import operations
 from octant.datalog import unfolding
+from octant.datalog import z3_comparison as z3c
 from octant.datalog import z3_result as z3r
 from octant.source import file
 from octant.source import openstack_source
@@ -132,7 +133,7 @@ class Z3Theory(object):
             variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
-            operator = primitives.OPERATIONS[expr.operation].z3
+            operator = operations.OPERATIONS[expr.operation].z3
             return operator(
                 *(self.compile_expr(variables, arg, env) for arg in expr.args))
         else:
@@ -142,9 +143,9 @@ class Z3Theory(object):
     def compile_atom(self, variables, atom, env):
         """Compiles an atom to Z3"""
         args = [self.compile_expr(variables, expr, env) for expr in atom.args]
-        if primitives.is_primitive(atom):
+        if operations.is_primitive(atom):
             compiled_atom = z3.simplify(
-                primitives.COMPARISON[atom.table](args))
+                operations.COMPARISON[atom.table](args))
         else:
             relation = self.relations[atom.table]
             compiled_atom = relation(*args)

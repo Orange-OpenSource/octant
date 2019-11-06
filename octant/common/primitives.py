@@ -14,13 +14,11 @@
 
 """Primitive tables exported from OpenStack for Datalog"""
 import abc
-import collections
 import ipaddress
 import six
 import z3
 
 from octant.common import ast
-from octant.common import z3_comparison as z3c
 
 
 MARSHALLED_NONE = "-*-None-*-"
@@ -233,24 +231,6 @@ def dump_translations(fd):
                 fd.write(line)
 
 
-Operation = collections.namedtuple(
-    'Operation',
-    ['args', 'result', 'ty_vars', 'z3'])
-
-OPERATIONS = {
-    "&": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x & y)),
-    "|": Operation(args=[0, 0], result=0, ty_vars=1, z3=(lambda x, y: x | y)),
-    "~": Operation(args=[0], result=0, ty_vars=1, z3=(lambda x: ~x))
-}
-
-COMPARISON = {
-    "=": (lambda args: args[0] == args[1]),
-    ">": (lambda args: z3c.z3_gt(args[0], args[1])),
-    ">=": (lambda args: z3c.z3_ge(args[0], args[1])),
-    "<": (lambda args: z3c.z3_lt(args[0], args[1])),
-    "<=": (lambda args: z3c.z3_le(args[0], args[1])),
-}
-
 CONSTANTS = {
     "none": ast.StringConstant(None, dtype='id'),
     "ingress": ast.StringConstant('ingress', dtype='direction'),
@@ -268,8 +248,3 @@ CONSTANTS = {
     "true": ast.BoolConstant(True),
     "false": ast.BoolConstant(False)
 }
-
-
-def is_primitive(atom):
-    """Checks if the atom is a primitive predicate"""
-    return atom.table in COMPARISON

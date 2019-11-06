@@ -18,7 +18,7 @@ import itertools
 import logging
 import six
 
-from octant.common import primitives
+from octant.datalog import operations
 from octant.datalog import origin
 
 
@@ -69,7 +69,7 @@ def get_to_solve(rule):
         (pos, vlist)
         for pos, atom in enumerate(rule.body)
         for vlist in (atom.variables(),)
-        if primitives.is_primitive(atom) and len(vlist) > 1]
+        if operations.is_primitive(atom) and len(vlist) > 1]
 
 
 def candidates(problems):
