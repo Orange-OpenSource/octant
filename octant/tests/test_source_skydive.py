@@ -22,7 +22,7 @@ import mock
 import six
 import z3
 
-from octant import primitives
+from octant.common import primitives
 from octant.source import skydive_source as source
 from octant.source import source as datasource
 from octant.tests import base

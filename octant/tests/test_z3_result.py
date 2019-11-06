@@ -27,10 +27,10 @@ import sys
 import textwrap
 import z3
 
-from octant import base as obase
-from octant import primitives
+from octant.common import base as obase
+from octant.common import primitives
+from octant.front import z3_result as z3r
 from octant.tests import base
-from octant import z3_result as z3r
 
 
 @contextmanager

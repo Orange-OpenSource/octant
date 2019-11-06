@@ -17,7 +17,7 @@
 import itertools
 import six
 
-from octant import ast
+from octant.common import ast
 
 
 class UFType(object):

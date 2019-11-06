@@ -18,7 +18,7 @@ from six.moves import reduce
 from oslo_config import cfg
 from skydive.rest import client as skydive_client
 
-from octant import primitives
+from octant.common import primitives
 
 
 class SkydiveCnx(object):

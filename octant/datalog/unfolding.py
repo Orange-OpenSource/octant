@@ -18,8 +18,8 @@ import itertools
 import logging
 import six
 
+from octant.common import primitives
 from octant.datalog import origin
-from octant import primitives
 
 
 class UnfoldPlan(object):

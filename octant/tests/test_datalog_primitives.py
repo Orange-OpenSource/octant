@@ -23,7 +23,7 @@ Tests for `primitives` module.
 
 import z3
 
-from octant import primitives
+from octant.common import primitives
 from octant.tests import base
 
 

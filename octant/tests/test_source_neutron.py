@@ -21,7 +21,7 @@ Tests Openstack datasource
 import six
 import z3
 
-from octant import primitives
+from octant.common import primitives
 from octant.source import openstack_source as source
 from octant.tests import base
 

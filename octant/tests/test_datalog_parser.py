@@ -19,8 +19,8 @@ test_datalog_compiler
 Tests for `datalog_compiler` module which preprocess Datalog rules.
 '''
 
-from octant import ast
-from octant import parser
+from octant.common import ast
+from octant.front import parser
 from octant.tests import base
 
 

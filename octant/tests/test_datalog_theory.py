@@ -23,11 +23,11 @@ Tests for `datalog_theory` module.
 
 import mock
 
-from octant import base as obase
+from octant.common import base as obase
 from octant.datalog import theory
-from octant import parser
+from octant.front import parser
+from octant.front import z3_result as z3r
 from octant.tests import base
-from octant import z3_result as z3r
 
 
 def pp(text):

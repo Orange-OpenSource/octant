@@ -21,8 +21,8 @@ import six
 from ply import lex
 from ply import yacc
 
-from octant import ast
-from octant import base
+from octant.common import ast
+from octant.common import base
 
 
 # Not changing ply conventions because of pylint

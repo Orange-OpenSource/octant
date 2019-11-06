@@ -24,18 +24,18 @@ import z3
 
 from oslo_config import cfg
 
-from octant import ast
-from octant import base
+from octant.common import ast
+from octant.common import base
+from octant.common import primitives
+from octant.common import z3_comparison as z3c
 from octant.datalog import compiler
 from octant.datalog import unfolding
-from octant import parser
-from octant import primitives
+from octant.front import parser
+from octant.front import z3_result as z3r
 from octant.source import file
 from octant.source import openstack_source
 from octant.source import skydive_source
 from octant.source import source
-from octant import z3_comparison as z3c
-from octant import z3_result as z3r
 
 
 class Z3Theory(object):
@@ -216,6 +216,4 @@ class Z3Theory(object):
         raw_answer = self.context.get_answer()
         logging.getLogger().debug("Raw answer:\n%s", raw_answer)
         answer = z3r.z3_to_array(raw_answer, types)
-        if isinstance(answer, bool):
-            return variables, answer
         return variables, answer

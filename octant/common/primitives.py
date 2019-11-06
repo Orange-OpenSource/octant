@@ -19,8 +19,8 @@ import ipaddress
 import six
 import z3
 
-from octant import ast
-from octant import z3_comparison as z3c
+from octant.common import ast
+from octant.common import z3_comparison as z3c
 
 
 MARSHALLED_NONE = "-*-None-*-"

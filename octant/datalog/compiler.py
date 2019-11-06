@@ -18,11 +18,11 @@ from six import moves
 
 from oslo_config import cfg
 
-from octant import ast
-from octant import base
+from octant.common import ast
+from octant.common import base
+from octant.common import primitives
 from octant.datalog import typechecker
 from octant.datalog import unfolding
-from octant import primitives
 
 
 class Z3Compiler(object):

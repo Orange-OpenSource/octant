@@ -16,9 +16,9 @@
 
 import mock
 
-from octant import main as octant
+from octant.front import main as octant
+from octant.front import z3_result as z3r
 from octant.tests import base
-from octant import z3_result as z3r
 
 
 def standard_cfg(mock_cfg):
@@ -65,11 +65,11 @@ class TestDatalogTheory(base.TestCase):
         result = out.getvalue()
         self.assertIs(True, "True" in result)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main(self, mock_open, mock_cfg, mock_src1, mock_src2, mock_exit):
         standard_cfg(mock_cfg)
         mock.mock_open(mock=mock_open, read_data="p(3452).")
@@ -78,11 +78,11 @@ class TestDatalogTheory(base.TestCase):
         result = out.getvalue()
         self.assertIs(True, "3452" in result)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main_no_time(self, mock_open, mock_cfg, mock_src1, mock_src2,
                           mock_exit):
         standard_cfg(mock_cfg)
@@ -95,11 +95,11 @@ class TestDatalogTheory(base.TestCase):
         self.assertIs(True, "3452" in result)
         self.assertIs(True, "421" in result)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main_incompat(
             self, mock_open, mock_cfg, mock_src1,
             mock_src2, mock_exit):
@@ -110,11 +110,11 @@ class TestDatalogTheory(base.TestCase):
             octant.main()
         mock_exit.assert_called_once_with(1)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main_parse_error(
             self, mock_open, mock_cfg, mock_src1,
             mock_src2, mock_exit):
@@ -126,11 +126,11 @@ class TestDatalogTheory(base.TestCase):
         # exit is called twice.
         mock_exit.assert_called_with(1)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main_type_error(
             self, mock_open, mock_cfg, mock_src1,
             mock_src2, mock_exit):
@@ -140,11 +140,11 @@ class TestDatalogTheory(base.TestCase):
             octant.main()
         mock_exit.assert_called_once_with(1)
 
-    @mock.patch("octant.main.sys.exit")
+    @mock.patch("octant.front.main.sys.exit")
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.parser.open")
+    @mock.patch("octant.front.parser.open")
     def test_main_parse_error_query(
             self, mock_open, mock_cfg, mock_src1,
             mock_src2, mock_exit):

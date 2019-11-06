@@ -23,9 +23,9 @@ Tests for `datalog_source` module.
 
 import mock
 
-from octant import ast
-from octant import base as obase
-from octant import primitives
+from octant.common import ast
+from octant.common import base as obase
+from octant.common import primitives
 from octant.source import source
 from octant.tests import base
 

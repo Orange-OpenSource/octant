@@ -16,10 +16,10 @@
 
 """Tests for datalog_unfolding module"""
 
-from octant import ast
+from octant.common import ast
 from octant.datalog import origin
 from octant.datalog import unfolding
-from octant import parser
+from octant.front import parser
 from octant.tests import base
 
 

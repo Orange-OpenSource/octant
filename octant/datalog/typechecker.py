@@ -16,9 +16,9 @@
 import logging
 from six import moves
 
-from octant import ast
-from octant import base
-from octant import primitives
+from octant.common import ast
+from octant.common import base
+from octant.common import primitives
 
 
 def type_theory(rules, extensible_tables, datasource):

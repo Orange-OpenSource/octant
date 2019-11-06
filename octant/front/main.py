@@ -22,12 +22,12 @@ import time
 
 from oslo_config import cfg
 
-from octant import base
+from octant.common import base
+from octant.common import primitives
 from octant.datalog import theory as datalog_theory
-from octant import options
-from octant import parser
-from octant import primitives
-from octant import z3_result as z3r
+from octant.front import options
+from octant.front import parser
+from octant.front import z3_result as z3r
 
 
 def print_result(query, variables, answers, time_used, show_pretty):

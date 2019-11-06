@@ -21,7 +21,7 @@ from six import moves
 import sys
 import z3
 
-from octant import base
+from octant.common import base
 
 
 class Any(object):
@@ -88,7 +88,8 @@ ResultItem = collections.namedtuple(
     ['var', 'value', 'mask'])
 """A streamlined result as a variable.
 
-its potential value, its mask and whether it is  substracted."""
+with its potential value and its mask
+"""
 
 
 def fuse(list, typ):
