@@ -15,6 +15,8 @@
 import os
 import sys
 
+from sphinx.ext.apidoc import main
+
 sys.path.insert(0, os.path.abspath('../..'))
 # -- General configuration ----------------------------------------------------
 
@@ -79,3 +81,13 @@ config_generator_config_file = [
     ('../../etc/octant-config-generator.conf',
      'static/octant')
 ]
+
+
+def run_apidoc(_):
+    main([
+        "-f", "-o", "doc/source/reference", "octant/",
+        "octant/tests/*.py", "octant/front/parser.py"])
+
+
+def setup(app):
+    app.connect('builder-inited', run_apidoc)

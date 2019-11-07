@@ -141,9 +141,9 @@ def make_cube(itemlist, types):
     """Creates a cube from a list
 
     :param itemlist: a list of ResultItem
-    :param types: types of variables so that we can translate back values to OS
-    representation.
-    :return: a cube
+    :param types: types of variables so that we can translate back values
+        to OS representation.
+    :returns: a cube
     """
     translist = [
         extract_equal(item)
