@@ -15,7 +15,7 @@
 """File Data Source"""
 from oslo_config import cfg
 
-from octant import base
+from octant.common import base
 
 
 def loadDescription(tables, source, fd):

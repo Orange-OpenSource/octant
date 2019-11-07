@@ -21,30 +21,17 @@ test_datalog_theory
 Tests for `datalog_theory` module.
 """
 
-from contextlib import contextmanager
 import mock
-import six
-import sys
 
-from octant import base as obase
-from octant import datalog_parser as parser
-from octant import datalog_theory as theory
+from octant.common import base as obase
+from octant.datalog import theory
+from octant.datalog import z3_result as z3r
+from octant.front import parser
 from octant.tests import base
-from octant import z3_result as z3r
 
 
 def pp(text):
     return parser.wrapped_parse(text)
-
-
-@contextmanager
-def capture_stdout():
-    old = sys.stdout
-    try:
-        sys.stdout = six.StringIO()
-        yield sys.stdout
-    finally:
-        sys.stdout = old
 
 
 PROG1 = """
@@ -65,179 +52,50 @@ def mocked_register(ds):
     ds.register({}, content)
 
 
-def standard_cfg(mock_cfg):
-    mock_cfg.pretty = True
-    mock_cfg.csv = False
-    mock_cfg.time = True
-    mock_cfg.query = ["p(X)"]
-    mock_cfg.theory = ["file"]
-    mock_cfg.restore = None
-    mock_cfg.save = None
-    mock_cfg.debug = False
-    mock_cfg.smt2 = None
-    mock_cfg.filesource = []
-
-
 class TestDatalogTheory(base.TestCase):
     """Test datalog_theory"""
 
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
+    @mock.patch("octant.source.openstack_source.register")
+    @mock.patch("octant.source.skydive_source.register")
     def test_build_theory_simple(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
-        r = theo.query("p(X)")
+        r = theo.query(parser.parse_atom("p(X)"))
         self.assertEqual((['X'], [z3r.Cube({0: 3})]), r)
-        r = theo.query("q(X)")
+        r = theo.query(parser.parse_atom("q(X)"))
         self.assertEqual((['X'], [z3r.Cube({0: 2}), z3r.Cube({0: 3})]), r)
 
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
+    @mock.patch("octant.source.openstack_source.register")
+    @mock.patch("octant.source.skydive_source.register")
     def test_query_bad(self, src1, src2):
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
-        self.assertRaises(obase.Z3NotWellFormed, lambda: theo.query("h(X)"))
         self.assertRaises(
-            obase.Z3NotWellFormed, lambda: theo.query("p(X,Y)"))
+            obase.Z3NotWellFormed,
+            lambda: theo.query(parser.parse_atom("h(X)")))
+        self.assertRaises(
+            obase.Z3NotWellFormed,
+            lambda: theo.query(parser.parse_atom("p(X,Y)")))
 
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
+    @mock.patch("octant.source.openstack_source.register")
+    @mock.patch("octant.source.skydive_source.register")
     def test_build_bad(self, src1, src2):
         theo = theory.Z3Theory(pp("p(X:ukw_type)."))
         self.assertRaises(obase.Z3TypeError, theo.build_theory)
 
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
+    @mock.patch("octant.source.openstack_source.register")
+    @mock.patch("octant.source.skydive_source.register")
     def test_simple_result(self, src1, src2):
         theo = theory.Z3Theory(pp("p(). q() :- !p()."))
         theo.build_theory()
-        self.assertEqual(([], True), theo.query("p()"))
-        self.assertEqual(([], False), theo.query("q()"))
+        self.assertEqual(([], True), theo.query(parser.parse_atom("p()")))
+        self.assertEqual(([], False), theo.query(parser.parse_atom("q()")))
 
-    @mock.patch("octant.source_openstack.register", new=mocked_register)
-    @mock.patch("octant.source_skydive.register")
+    @mock.patch("octant.source.openstack_source.register", new=mocked_register)
+    @mock.patch("octant.source.skydive_source.register")
     def test_with_source(self, src1):
         theo = theory.Z3Theory(pp("p(X) :- q(a=X)."))
         theo.build_theory()
         self.assertEqual(
             (['X'], [z3r.Cube({0: 421}), z3r.Cube({0: 567})]),
-            theo.query("p(X)"))
-
-    def test_print_result_pretty(self):
-        with capture_stdout() as out:
-            theory.print_result(
-                "query", ["VarX", "Y"],
-                [z3r.Cube({0: 2134, 1: 3}), z3r.Cube({0: 4, 1: 572})],
-                3.5, True)
-        result = out.getvalue()
-        self.assertIs(True, "2134" in result)
-        self.assertIs(True, "572" in result)
-        self.assertIs(True, "VarX" in result)
-        with capture_stdout() as out:
-            theory.print_result(
-                "query", [], True, None, True)
-        result = out.getvalue()
-        self.assertIs(True, "True" in result)
-
-    def test_print_result_standard(self):
-        with capture_stdout() as out:
-            theory.print_result(
-                "query", ["VarX", "Y"], [[2134, 3], [4, 572]], 3.5, False)
-        result = out.getvalue()
-        self.assertIs(True, "2134" in result)
-        self.assertIs(True, "572" in result)
-        with capture_stdout() as out:
-            theory.print_result(
-                "query", [], True, None, False)
-        result = out.getvalue()
-        self.assertIs(True, "True" in result)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main(self, mock_open, mock_cfg, mock_src1, mock_src2, mock_exit):
-        standard_cfg(mock_cfg)
-        mock.mock_open(mock=mock_open, read_data="p(3452).")
-        with capture_stdout() as out:
-            theory.main()
-        result = out.getvalue()
-        self.assertIs(True, "3452" in result)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main_no_time(self, mock_open, mock_cfg, mock_src1, mock_src2,
-                          mock_exit):
-        standard_cfg(mock_cfg)
-        mock_cfg.time = False
-        mock_cfg.query = ["p(X)", "q(X)"]
-        mock.mock_open(mock=mock_open, read_data="p(3452). q(421).")
-        with capture_stdout() as out:
-            theory.main()
-        result = out.getvalue()
-        self.assertIs(True, "3452" in result)
-        self.assertIs(True, "421" in result)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main_incompat(
-            self, mock_open, mock_cfg, mock_src1,
-            mock_src2, mock_exit):
-        standard_cfg(mock_cfg)
-        mock_cfg.csv = True
-        mock.mock_open(mock=mock_open, read_data="p(3452).")
-        with capture_stdout():
-            theory.main()
-        mock_exit.assert_called_once_with(1)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main_parse_error(
-            self, mock_open, mock_cfg, mock_src1,
-            mock_src2, mock_exit):
-        standard_cfg(mock_cfg)
-        mock.mock_open(mock=mock_open, read_data="p(.")
-        with capture_stdout():
-            theory.main()
-        # Weird case. Because we do not really exit, we proceed too far.
-        # exit is called twice.
-        mock_exit.assert_called_with(1)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main_type_error(
-            self, mock_open, mock_cfg, mock_src1,
-            mock_src2, mock_exit):
-        standard_cfg(mock_cfg)
-        mock.mock_open(mock=mock_open, read_data="p(3452:ukw_type).")
-        with capture_stdout():
-            theory.main()
-        mock_exit.assert_called_once_with(1)
-
-    @mock.patch("octant.datalog_theory.sys.exit")
-    @mock.patch("octant.source_openstack.register")
-    @mock.patch("octant.source_skydive.register")
-    @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_parser.open")
-    def test_main_parse_error_query(
-            self, mock_open, mock_cfg, mock_src1,
-            mock_src2, mock_exit):
-        standard_cfg(mock_cfg)
-        mock_cfg.query = ["p("]
-        mock.mock_open(mock=mock_open, read_data="p().")
-        with capture_stdout():
-            theory.main()
-        mock_exit.assert_called_once_with(1)
+            theo.query(parser.parse_atom("p(X)")))

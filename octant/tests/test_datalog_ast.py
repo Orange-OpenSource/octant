@@ -20,7 +20,7 @@ test_datalog_ast
 Tests for `datalog_ast` module.
 '''
 
-from octant import datalog_ast as ast
+from octant.common import ast
 from octant.tests import base
 
 

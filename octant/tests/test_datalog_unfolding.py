@@ -16,9 +16,10 @@
 
 """Tests for datalog_unfolding module"""
 
-from octant import datalog_ast as ast
-from octant import datalog_parser as parser
-from octant import datalog_unfolding as unfolding
+from octant.common import ast
+from octant.datalog import origin
+from octant.datalog import unfolding
+from octant.front import parser
 from octant.tests import base
 
 
@@ -45,70 +46,70 @@ class TestUnfolding(base.TestCase):
     """Tests of utility functions"""
 
     def test_simplify_to_ground_types(self):
-        t1 = unfolding.UFGround(1, "t", None)
-        t2 = unfolding.UFGround(1, "t", None)
-        t3 = unfolding.UFDisj((t1, t2))
-        t4 = unfolding.UFConj((
-            t1, unfolding.UFConj((t2, t1)),
-            unfolding.UFBot(), t3))
+        t1 = origin.UFGround(1, "t", None)
+        t2 = origin.UFGround(1, "t", None)
+        t3 = origin.UFDisj((t1, t2))
+        t4 = origin.UFConj((
+            t1, origin.UFConj((t2, t1)),
+            origin.UFBot(), t3))
         expected = [t1, t2, t1, t3]
         self.assertEqual(
             expected,
-            unfolding.simplify_to_ground_types(t4))
+            origin.simplify_to_ground_types(t4))
 
     def test_len_occ(self):
-        self.assertEqual(0, unfolding.len_occ(None))
-        self.assertEqual(1, unfolding.len_occ(('m', None)))
-        self.assertEqual(2, unfolding.len_occ(('n', ('m', None))))
+        self.assertEqual(0, origin.len_occ(None))
+        self.assertEqual(1, origin.len_occ(('m', None)))
+        self.assertEqual(2, origin.len_occ(('n', ('m', None))))
 
     def test_weight_type(self):
-        t1 = unfolding.UFGround(1, "t", ('m', None))
-        t2 = unfolding.UFBot()
-        t3 = unfolding.UFDisj((t1, t2))
-        t4 = unfolding.UFConj((t1, t2, t1))
-        self.assertEqual((0, 1), unfolding.weight_type(t1))
-        self.assertEqual((2, 0), unfolding.weight_type(t2))
-        self.assertEqual((1, 2), unfolding.weight_type(t3))
-        self.assertEqual((1, 3), unfolding.weight_type(t4))
+        t1 = origin.UFGround(1, "t", ('m', None))
+        t2 = origin.UFBot()
+        t3 = origin.UFDisj((t1, t2))
+        t4 = origin.UFConj((t1, t2, t1))
+        self.assertEqual((0, 1), origin.weight_type(t1))
+        self.assertEqual((2, 0), origin.weight_type(t2))
+        self.assertEqual((1, 2), origin.weight_type(t3))
+        self.assertEqual((1, 3), origin.weight_type(t4))
 
     def test_wrap_type(self):
         mark = 'm'
-        t1 = unfolding.UFGround(1, "t", None)
-        t2 = unfolding.UFGround(1, "t", ('n', None))
-        t3 = unfolding.UFDisj((t1, t2))
-        t4 = unfolding.UFConj((
-            t1, unfolding.UFConj((t2, t1)),
-            unfolding.UFBot(), t3))
-        e1 = unfolding.UFGround(1, "t", (mark, None))
-        e2 = unfolding.UFGround(1, "t", (mark, ('n', None)))
-        e3 = unfolding.UFDisj((e1, e2))
-        e4 = unfolding.UFConj((
-            e1, unfolding.UFConj((e2, e1)),
-            unfolding.UFBot(), e3))
-        self.assertEqual(e4, unfolding.wrap_type(t4, mark))
+        t1 = origin.UFGround(1, "t", None)
+        t2 = origin.UFGround(1, "t", ('n', None))
+        t3 = origin.UFDisj((t1, t2))
+        t4 = origin.UFConj((
+            t1, origin.UFConj((t2, t1)),
+            origin.UFBot(), t3))
+        e1 = origin.UFGround(1, "t", (mark, None))
+        e2 = origin.UFGround(1, "t", (mark, ('n', None)))
+        e3 = origin.UFDisj((e1, e2))
+        e4 = origin.UFConj((
+            e1, origin.UFConj((e2, e1)),
+            origin.UFBot(), e3))
+        self.assertEqual(e4, origin.wrap_type(t4, mark))
 
     def test_reduce_disj(self):
-        t1 = unfolding.UFGround(1, "t", None)
-        t2 = unfolding.UFGround(2, "u", None)
-        t3 = unfolding.UFBot()
-        t4 = unfolding.UFDisj((t1, t2))
-        t5 = unfolding.UFDisj((t1, t3))
-        t6 = unfolding.UFDisj((t1, unfolding.top))
-        result = unfolding.reduce_disj([t4, t1, t5])
-        self.assertIsInstance(result, unfolding.UFDisj)
+        t1 = origin.UFGround(1, "t", None)
+        t2 = origin.UFGround(2, "u", None)
+        t3 = origin.UFBot()
+        t4 = origin.UFDisj((t1, t2))
+        t5 = origin.UFDisj((t1, t3))
+        t6 = origin.UFDisj((t1, origin.top))
+        result = origin.reduce_disj([t4, t1, t5])
+        self.assertIsInstance(result, origin.UFDisj)
         self.assertEqual(3, len(result.args))
-        self.assertEqual(unfolding.top, unfolding.reduce_disj([t4, t1, t6]))
+        self.assertEqual(origin.top, origin.reduce_disj([t4, t1, t6]))
 
     def test_reduce_conj(self):
-        t1 = unfolding.UFGround(1, "t", None)
-        t2 = unfolding.UFGround(2, "u", None)
-        t3 = unfolding.UFGround(2, "v", None)
-        t4 = unfolding.UFDisj((t1, t2))
-        t5 = unfolding.UFDisj((t1, t3))
+        t1 = origin.UFGround(1, "t", None)
+        t2 = origin.UFGround(2, "u", None)
+        t3 = origin.UFGround(2, "v", None)
+        t4 = origin.UFDisj((t1, t2))
+        t5 = origin.UFDisj((t1, t3))
         self.assertEqual(
-            unfolding.UFConj((t1, t2)),
-            unfolding.reduce_conj([t1, t2, t4, t5]))
-        self.assertEqual(t4, unfolding.reduce_conj([t4, t5]))
+            origin.UFConj((t1, t2)),
+            origin.reduce_conj([t1, t2, t4, t5]))
+        self.assertEqual(t4, origin.reduce_conj([t4, t5]))
 
     def test_get_to_solve(self):
         prog = parser.wrapped_parse("t(X) :- p(X,Y), X = Y & 1, q(X), X < 10.")
@@ -153,13 +154,13 @@ class TestUnfolding(base.TestCase):
         prog = "t(X) :- p(X,Y), X = Y & 1.\ns(X) :- t(X), 2 = X & 2."
         rules = parser.wrapped_parse(prog)
         extensible = {"p": ["int", "int"]}
-        unfold = unfolding.Unfolding(rules, extensible, (lambda t: t))
+        unfold = origin.Origin(rules, extensible)
         self.assertEqual((2, True), unfold.tables["p"])
         self.assertEqual((1, False), unfold.tables["t"])
 
     def test_partially_ground(self):
         rules = parser.wrapped_parse(prog0)
-        unfold = unfolding.Unfolding(rules, {}, (lambda t: t))
+        unfold = origin.Origin(rules, {})
         result = unfold.get_partially_ground_preds()
         self.assertEqual({'s': set(), 't': set([1])}, result)
 
@@ -168,13 +169,13 @@ class TestUnfolding(base.TestCase):
         atom_t = rules[0].head
         atom_z = ast.Atom('z', [])
         external = {'q': ['int', 'int'], 'p': ['int']}
-        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold = origin.Origin(rules, external)
         unfold.initialize_types()
         self.assertEqual(
-            [unfolding.UFBot(), unfolding.UFGround(1, "t", None)],
+            [origin.UFBot(), origin.UFGround(1, "t", None)],
             unfold.table_types['t'])
         self.assertEqual(
-            unfolding.UFBot(),
+            origin.UFBot(),
             unfold.get_atom_type(atom_t, 0))
         self.assertEqual(None, unfold.get_atom_type(atom_t, 3))
         self.assertEqual(None, unfold.get_atom_type(atom_z, 0))
@@ -184,7 +185,7 @@ class TestUnfolding(base.TestCase):
         vars = [rules[rid].head.args[pos].full_id()
                 for (rid, pos) in [(1, 0), (3, 0), (3, 1)]]
         external = {'q': ['int', 'int'], 'p': ['int']}
-        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold = origin.Origin(rules, external)
         unfold.initialize_types()
         unfold.type_variables()
         typs = [unfold.var_types[v] for v in vars]
@@ -197,12 +198,12 @@ class TestUnfolding(base.TestCase):
     def test_type_tables(self):
         rules = parser.wrapped_parse(prog0)
         external = {'q': ['int', 'int'], 'p': ['int']}
-        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold = origin.Origin(rules, external)
         unfold.initialize_types()
         unfold.type_variables()
         result = unfold.type_tables()
         typ_s0 = result['s'][0]
-        self.assertIsInstance(typ_s0, unfolding.UFDisj)
+        self.assertIsInstance(typ_s0, origin.UFDisj)
         self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
         self.assertEqual(
             ['q', 's'],
@@ -211,11 +212,11 @@ class TestUnfolding(base.TestCase):
     def test_type(self):
         rules = parser.wrapped_parse(prog0)
         external = {'q': ['int', 'int'], 'p': ['int']}
-        unfold = unfolding.Unfolding(rules, external, (lambda t: t))
+        unfold = origin.Origin(rules, external)
         unfold.type()
         result = unfold.table_types
         typ_s0 = result['s'][0]
-        self.assertIsInstance(typ_s0, unfolding.UFDisj)
+        self.assertIsInstance(typ_s0, origin.UFDisj)
         self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
         self.assertEqual(
             ['q', 's'],
@@ -225,8 +226,9 @@ class TestUnfolding(base.TestCase):
         rules = parser.wrapped_parse(prog1)
         external = {'q': ['int', 'int'], 'p': ['int'], 'r': ['int']}
         unfold = unfolding.Unfolding(rules, external, (lambda t: t))
-        unfold.type()
-        result = unfold.rule_strategy(rules[0])
+        ogn = origin.Origin(rules, external)
+        var_types = ogn.type()
+        result = unfold.rule_strategy(var_types, rules[0])
         filtered = [(t, sorted(pos)) for (((t, pos),), _) in result]
         self.assertEqual([('q', [0, 1]), ('p', [0])], filtered)
 
@@ -235,8 +237,9 @@ class TestUnfolding(base.TestCase):
         rule = rules[0]
         external = {'q': ['int'], 'p': ['int']}
         unfold = unfolding.Unfolding(rules, external, (lambda t: t))
-        unfold.type()
-        result = unfold.rule_strategy(rule)
+        ogn = origin.Origin(rules, external)
+        var_types = ogn.type()
+        result = unfold.rule_strategy(var_types, rule)
         filtered = [
             sorted([(t, sorted(pos)) for (t, pos) in plan],
                    key=lambda p: p[0])

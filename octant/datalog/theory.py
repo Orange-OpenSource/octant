@@ -20,26 +20,22 @@ from collections import OrderedDict
 import logging
 import six
 from six import moves
-import sys
-import textwrap
-import time
 import z3
 
 from oslo_config import cfg
 
-from octant import base
-from octant import datalog_ast as ast
-from octant import datalog_compiler as compiler
-from octant import datalog_parser as parser
-from octant import datalog_primitives as primitives
-from octant import datalog_source as source
-from octant import datalog_unfolding as unfolding
-from octant import options
-from octant import source_file
-from octant import source_openstack
-from octant import source_skydive
-from octant import z3_comparison as z3c
-from octant import z3_result as z3r
+from octant.common import ast
+from octant.common import base
+from octant.common import primitives
+from octant.datalog import compiler
+from octant.datalog import operations
+from octant.datalog import unfolding
+from octant.datalog import z3_comparison as z3c
+from octant.datalog import z3_result as z3r
+from octant.source import file
+from octant.source import openstack_source
+from octant.source import skydive_source
+from octant.source import source
 
 
 class Z3Theory(object):
@@ -48,9 +44,9 @@ class Z3Theory(object):
     def __init__(self, rules):
         self.rules = rules
         self.datasource = source.Datasource(primitives.TYPES)
-        source_openstack.register(self.datasource)
-        source_skydive.register(self.datasource)
-        source_file.register(self.datasource)
+        openstack_source.register(self.datasource)
+        skydive_source.register(self.datasource)
+        file.register(self.datasource)
 
         self.compiler = (
             compiler.Z3Compiler(rules, primitives.CONSTANTS, self.datasource))
@@ -137,7 +133,7 @@ class Z3Theory(object):
             variables[full_id] = var
             return var
         elif isinstance(expr, ast.Operation):
-            operator = primitives.OPERATIONS[expr.operation].z3
+            operator = operations.OPERATIONS[expr.operation].z3
             return operator(
                 *(self.compile_expr(variables, arg, env) for arg in expr.args))
         else:
@@ -147,9 +143,9 @@ class Z3Theory(object):
     def compile_atom(self, variables, atom, env):
         """Compiles an atom to Z3"""
         args = [self.compile_expr(variables, expr, env) for expr in atom.args]
-        if primitives.is_primitive(atom):
+        if operations.is_primitive(atom):
             compiled_atom = z3.simplify(
-                primitives.COMPARISON[atom.table](args))
+                operations.COMPARISON[atom.table](args))
         else:
             relation = self.relations[atom.table]
             compiled_atom = relation(*args)
@@ -193,9 +189,8 @@ class Z3Theory(object):
                 self.compiler.extensible_tables):
             fd.write("; {}({})\n".format(table_name, ",".join(fields)))
 
-    def query(self, str_query):
+    def query(self, atom):
         """Query a relation on the compiled theory"""
-        atom = parser.parse_atom(str_query)
         self.compiler.substitutes_constants_in_array(atom.args)
         if atom.table not in self.compiler.typed_tables:
             raise base.Z3NotWellFormed(
@@ -220,88 +215,4 @@ class Z3Theory(object):
         raw_answer = self.context.get_answer()
         logging.getLogger().debug("Raw answer:\n%s", raw_answer)
         answer = z3r.z3_to_array(raw_answer, types)
-        if isinstance(answer, bool):
-            return variables, answer
         return variables, answer
-
-
-def print_result(query, variables, answers, time_used, show_pretty):
-    """Pretty-print the result of a query"""
-    print("*" * 80)
-    print(query)
-    if time_used is not None:
-        print("Query time: {}".format(time_used))
-    print("-" * 80)
-    if show_pretty:
-        if isinstance(answers, list):
-            z3r.print_pretty(variables, answers)
-        else:
-            print('   ' + str(answers))
-    else:
-        wrapped = textwrap.wrap(
-            str(answers), initial_indent='    ', subsequent_indent='    ')
-        for line in wrapped:
-            print(line)
-
-
-def main():
-    """Octant entry point"""
-    logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
-    args = sys.argv[1:]
-    options.init(args)
-    if cfg.CONF.ipsize != 32:
-        primitives.TYPES['ip_address'] = (
-            primitives.IpAddressType(size=cfg.CONF.ipsize))
-    time_required = cfg.CONF.time
-    csv_out = cfg.CONF.csv
-    pretty = cfg.CONF.pretty
-    debug = cfg.CONF.debug
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    if csv_out and (time_required or pretty):
-        print("Cannot use option --csv with --time or --pretty.")
-        sys.exit(1)
-    rules = []
-    start = time.clock()
-    try:
-        for rule_file in cfg.CONF.theory:
-            rules += parser.parse_file(rule_file)
-    except base.Z3ParseError as exc:
-        print(exc.args[1])
-        sys.exit(1)
-    if time_required:
-        print("Parsing time: {}".format(time.clock() - start))
-    start = time.clock()
-    try:
-        theory = Z3Theory(rules)
-        theory.build_theory()
-        if time_required:
-            print("Data retrieval: {}".format(time.clock() - start))
-        for query in cfg.CONF.query:
-            start = time.clock()
-            variables, answers = theory.query(query)
-            if csv_out:
-                z3r.print_csv(variables, answers)
-            else:
-                print_result(
-                    query, variables, answers,
-                    time.clock() - start if time_required else None,
-                    cfg.CONF.pretty)
-        if not csv_out:
-            print("*" * 80)
-    except base.Z3NotWellFormed as exc:
-        print("Badly formed program: {}".format(exc.args[1]))
-        sys.exit(1)
-    except base.Z3TypeError as exc:
-        print("Type error: {}".format(exc.args[1]))
-        sys.exit(1)
-    except base.Z3SourceError as exc:
-        print("Error in datasource: {}".format(exc.args[1]))
-        sys.exit(1)
-    except base.Z3ParseError:
-        print("Parser error in query.")
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()

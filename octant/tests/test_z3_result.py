@@ -27,10 +27,11 @@ import sys
 import textwrap
 import z3
 
-from octant import base as obase
-from octant import datalog_primitives as primitives
+from octant.common import base as obase
+from octant.common import primitives
+from octant.datalog import z3_result as z3r
+from octant.front import printer
 from octant.tests import base
-from octant import z3_result as z3r
 
 
 @contextmanager
@@ -139,12 +140,12 @@ class TestZ3Result(base.TestCase):
 
     def test_print_csv(self):
         with capture_stdout() as out:
-            z3r.print_csv(
+            printer.print_csv(
                 ["X", "Y"],
                 [z3r.Cube({0: 2, 1: 3}), z3r.Cube({0: 4, 1: 5})])
         self.assertEqual('P,X,Y\r\n+,2,3\r\n+,4,5\r\n\n', out.getvalue())
         with capture_stdout() as out:
-            z3r.print_csv([], True)
+            printer.print_csv([], True)
         self.assertIs(True, "True" in out.getvalue())
 
     def test_print_csv_doc(self):
@@ -165,7 +166,7 @@ class TestZ3Result(base.TestCase):
                     -,140/204,4\r\n
                     """)
         with capture_stdout() as out:
-            z3r.print_csv(["X", "Y"], answer)
+            printer.print_csv(["X", "Y"], answer)
         self.assertEqual(formatted, out.getvalue())
 
     def test_print_pretty_doc(self):
@@ -192,5 +193,5 @@ class TestZ3Result(base.TestCase):
             +===+=========+===+
             """)
         with capture_stdout() as out:
-            z3r.print_pretty(["X", "Y"], answer)
+            printer.print_pretty(["X", "Y"], answer)
         self.assertEqual(formatted, out.getvalue())

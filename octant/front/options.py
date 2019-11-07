@@ -15,7 +15,7 @@
 """ Check-reach configuration options management """
 from oslo_config import cfg
 
-from octant import version
+import octant
 
 OPENSTACK_OPTIONS = [
     cfg.BoolOpt('enabled', default=True, help='Enable Openstack predicates'),
@@ -76,7 +76,7 @@ cfg.CONF.register_cli_opts(CLI_OPTIONS)
 def init(args, **kwargs):
     """Initialize configuration"""
     cfg.CONF(args=args, project='octant',
-             version='%%(prog)s %s' % version.VERSION_INFO.release_string(),
+             version='%%(prog)s %s' % octant.__version__,
              **kwargs)
 
 

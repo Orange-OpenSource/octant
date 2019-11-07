@@ -12,16 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from __future__ import print_function
-
 import collections
-import csv
 import itertools
 from six import moves
-import sys
 import z3
 
-from octant import base
+from octant.common import base
 
 
 class Any(object):
@@ -88,7 +84,8 @@ ResultItem = collections.namedtuple(
     ['var', 'value', 'mask'])
 """A streamlined result as a variable.
 
-its potential value, its mask and whether it is  substracted."""
+with its potential value and its mask
+"""
 
 
 def fuse(list, typ):
@@ -208,88 +205,3 @@ def z3_to_array(expr, types):
         return True
     else:
         raise base.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
-
-
-def print_pretty(vars, answers):
-    """Pretty print a result.
-
-    :param vars: list of requested variables
-    :param answers: list of alternative doc results
-    """
-    # init length
-    lengths = [len(var) for var in vars]
-
-    # compute length
-    def compute_len_cube(cube):
-        for key, val in cube.faces.items():
-            lengths[key] = max(lengths[key], len(str(val)))
-
-    def compute_len(elt):
-        if isinstance(elt, Cube):
-            compute_len_cube(elt)
-        elif isinstance(elt, Doc):
-            compute_len_cube(elt.base)
-            for d in elt.diffs:
-                compute_len_cube(d)
-
-    for doc in answers:
-        compute_len(doc)
-
-    def draw_sep(c):
-        return (
-            '+' + c * 3 + '+' +
-            '+'.join(map(lambda l: c * (2 + l), lengths)) + '+')
-
-    def print_elt(pair):
-        (i, val) = pair
-        full_len = lengths[i]
-        out = str(val)
-        return out + ' ' * (full_len - len(out))
-
-    def draw_row(pos, l):
-        return (
-            '| ' + pos + ' | ' +
-            ' | '.join(map(print_elt, enumerate(l))) + ' |')
-
-    def draw_cube(pos, c):
-        return draw_row(pos, [
-            Any() if i not in c.faces else c.faces[i]
-            for i in range(len(vars))])
-
-    print(draw_sep('='))
-    print(draw_row(' ', vars))
-    print(draw_sep('='))
-    for elt in answers:
-        if isinstance(elt, Cube):
-            print(draw_cube('+', elt))
-        elif isinstance(elt, Doc):
-            print(draw_cube('+', elt.base))
-            print(draw_sep('-'))
-            for d in elt.diffs:
-                print(draw_cube('-', d))
-        print(draw_sep('='))
-
-
-def print_csv(variables, answers):
-    """Print the result of a query in excel csv format
-
-    :param vars: list of requested variables
-    :param answers: list of alternative doc results
-    """
-
-    def row_of_cube(p, cube):
-        return [p] + [cube.faces[i] if i in cube.faces else Any()
-                      for i in range(len(variables))]
-    if isinstance(answers, list):
-        csvwriter = csv.writer(sys.stdout)
-        csvwriter.writerow(['P'] + variables)
-        for elt in answers:
-            if isinstance(elt, Cube):
-                csvwriter.writerow(row_of_cube('+', elt))
-            elif isinstance(elt, Doc):
-                csvwriter.writerow(row_of_cube('+', elt.base))
-                for d in elt.diffs:
-                    csvwriter.writerow(row_of_cube('-', d))
-    else:
-        print(str(answers))
-    print()

@@ -15,11 +15,9 @@
 #    under the License.
 
 import itertools
-import logging
 import six
 
-from octant import datalog_ast as ast
-from octant import datalog_primitives as primitives
+from octant.common import ast
 
 
 class UFType(object):
@@ -60,7 +58,7 @@ class UFGround(UFType):
 
     .. py:attribute:: table:
 
-        table defining the ground term (str)
+        table of the EDB defining the ground term (str)
 
     .. py:attribute:: occurrence:
 
@@ -125,42 +123,6 @@ class UFDisj(UFType):
 
     def __repr__(self):
         return "UFDisj(%s)" % (self.args,)
-
-
-class UnfoldPlan(object):
-    """Result of unfolding as a plan
-
-    .. py:attribute:: plan
-
-        the full plan to follow for unfolding. For each rule that needs
-        simplification the plan associate to the id of the rule, a list of
-        simplification actions. An action is a list of elementary actions
-        taking place at the same time. An elementary action specifies a table
-        and a column in that table and the variable that will receive the
-        content of this table.
-
-    .. py: attribute:: tables
-
-        a dictionary with keys the tables to retrieve and values the list of
-        column positions to retrieve
-
-    .. py: attribute:: contents
-
-        a dictionnary from table to retrieve to list of actual content tuples
-        the columns given are as specified by the tables field.
-    """
-    def __init__(self, plan, tables, contents):
-        self.plan = plan
-        self.contents = contents
-        self.tables = tables
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, self.__class__) and other.plan == self.plan and
-            other.tables == self.tables and other.contents == self.contents)
-
-    def __hash__(self):
-        return hash((self.plan, self.tables, self.contents))
 
 
 top = UFTop()
@@ -309,70 +271,10 @@ def reduce_conj(l):
     return flat[0]
 
 
-def get_to_solve(rule):
-    """Gets the position where there is a predicate to simplify.
+class Origin(object):
+    """Origin computes types for unfolding."""
 
-    A primitive predicate with more than one variable will not be handled
-    correctly by the difference of cube domain. It must be simplified to
-    reach only one free variable.
-    """
-    return [
-        (pos, vlist)
-        for pos, atom in enumerate(rule.body)
-        for vlist in (atom.variables(),)
-        if primitives.is_primitive(atom) and len(vlist) > 1]
-
-
-def candidates(problems):
-    """Get the set of candidate variables."""
-    return {var for (_, vl) in problems for var in vl}
-
-
-def environ_from_plan(unfold_plan):
-    """Takes a plan and compile it to a dictionnary of envs for rules
-
-    :param unfold_plan: the complete plan
-    :return: All the environments to which one must expand the ground
-       variables.
-    :rtype: an array of dictionnary.
-    """
-    def merge_env(envs):
-        result = []
-        for tuple in envs:
-            cell = {}
-            for env in tuple:
-                cell.update(env)
-            result.append(cell)
-        return result
-
-    def expand(group):
-        (spec, vars) = group
-        return [
-            # pylint: disable=unsubscriptable-object
-            {vars[i]: record[index_map.index(pos)]
-             for (i, pos) in enumerate(positions)}
-            for (table, positions) in spec
-            for index_map in (unfold_plan.tables[table],)
-            for record in unfold_plan.contents[table]
-        ]
-    env = {
-        rule_id: merge_env(itertools.product(*(
-            expand(group)
-            for group in plan)
-        ))
-        for rule_id, plan in unfold_plan.plan
-    }
-    logging.getLogger().debug("Environment for unfolding:\n%s" % env)
-    return env
-
-
-class Unfolding(object):
-    """Unfolding is the engine for performing rule enfolding
-
-    It computes types for unfolding and builds a strategy
-    """
-
-    def __init__(self, rules, extensible_tables, compiler):
+    def __init__(self, rules, extensible_tables):
         """Unfolding constructor
 
         :param rules: A list of rules as AST with unique variables and
@@ -388,7 +290,6 @@ class Unfolding(object):
         self.grounds = {}
         self.table_types = {}
         self.var_types = {}
-        self.compiler = compiler
         self.populate_tables(extensible_tables)
 
     def populate_tables(self, extensible_tables):
@@ -515,6 +416,8 @@ class Unfolding(object):
     def type(self):
         """Type a set of rules.
 
+        :returns: a dictionary from variable names to their type.
+
         Performs a fixpoint. Each iteration type variables then type rule
         heads. Table types are comparable and the fixpoint is achieved when
         table types do not evolve.
@@ -528,136 +431,4 @@ class Unfolding(object):
             if (new_table_types == self.table_types):
                 break
             self.table_types = new_table_types
-
-    def rule_strategy(self, rule):
-        """Strategy for a rule
-
-        :param ast.Rule rule: the rule on which to compute a strategy
-        :return: a plan for the rule which is a list of pairs
-
-                 * a tuple of tables to unfold with the position to unfold
-                 * a list of variables solved
-        """
-        debug = logging.getLogger().debug
-        problems = get_to_solve(rule)
-        if problems == []:
-            return None
-        debug("Rule to unfold: %s", rule)
-        plan = []
-        while problems != []:
-            debug("Current problem\n:%s", problems)
-            candidate_vars = candidates(problems)
-            candidate_types = [
-                (t, v)
-                for v in candidate_vars
-                for t in simplify_to_ground_types(
-                    self.var_types.get(v, []))
-            ]
-            simple_types = [p for p in candidate_types if is_ground(p[0])]
-            debug("Simple types for problem\n:%s", simple_types)
-            is_simple = True
-            if simple_types == []:
-                is_simple = False
-                simple_types = [p for p in candidate_types if is_disj(p[0])]
-                if simple_types == []:
-                    debug("Non simple types %s", candidate_types)
-                    debug("Plan may be incomplete.")
-                    return plan
-
-            def by_occ(p):
-                return occurrence(p[0])
-
-            simple_types.sort(key=by_occ)
-            simple_types_by_occ = [
-                (occ, list(grp))
-                for (occ, grp) in itertools.groupby(simple_types, key=by_occ)]
-            simple_types_by_occ.sort(reverse=True, key=lambda p: len(p[1]))
-            debug("Sorted simple types:\n%s", simple_types_by_occ)
-            (_, solved) = simple_types_by_occ[0]
-            solved_vars = [pair[1] for pair in solved]
-            if is_simple:
-                tspec = ((solved[0][0].table, [t.pos for (t, v) in solved]), )
-            else:
-                skeleton = solved[0][0].args
-                tspec = tuple(
-                    (a.table, [t.args[i].pos for (t, _) in solved])
-                    for (i, a) in enumerate(skeleton))
-            plan.append((tspec, solved_vars))
-            debug("Solved variables:\n%s", solved_vars)
-            # We expect less problems to solve and at least simpler ones.
-            problems = [
-                (pos, vlist_reduced)
-                for (pos, vlist) in problems
-                for vlist_reduced in (
-                    [v for v in vlist if v not in solved_vars], )
-                if len(vlist_reduced) > 1
-            ]
-            debug('-' * 80)
-        return plan
-
-    def idb_extract(self, table_spec):
-        """Enumerates the ground idb tables used
-
-        :param table_spec: a map from tablenames to array of argument positions
-                           used.
-        :return: a map from tablenames to arrays of records. Records contain
-                 compiled values.
-        :rtype: dictionnary
-        """
-        grouped_rules = {
-            headname: list(group)
-            for (headname, group) in itertools.groupby(
-                self.rules, key=head_table)
-        }
-        return {
-            table: [
-                [self.compiler(args[pos]) for pos in poslist]
-                for rule in group
-                for args in (rule.head.args,)
-            ]
-            for (table, poslist) in six.iteritems(table_spec)
-            if table in grouped_rules
-            for group in (grouped_rules[table],)
-        }
-
-    def strategy(self):
-        """Computes a strategy to unfold.
-
-        :return: an unfoldplan made of three parts:
-
-                 * the plan itself as a sequence of rules to unfold
-                 * the ground tables that are needed associated with the list
-                   of columns used
-                 * the contents of IDB tables (programmatically defined) that
-                   are ground and used for the expansion.
-        """
-        plans = [
-            (rule.id, plan)
-            for rule in self.rules
-            for plan in (self.rule_strategy(rule),)
-            if plan is not None
-        ]
-        table_accesses = {
-            (t, p)
-            for _, plan in plans
-            for (group, _) in plan
-            for (t, l) in group
-            for p in l
-        }
-        tables = {
-            table: [pos for _, pos in group]
-            for (table, group) in itertools.groupby(
-                sorted(list(table_accesses), key=lambda p: p[0]),
-                key=lambda p: p[0])
-        }
-        idb_tables = self.idb_extract(tables)
-        logger = logging.getLogger()
-        logger.debug("Unfolding plans:\n%s" % plans)
-        logger.debug("Tables used by unfolding: %s" % tables)
-        logger.debug("IDB for unfolding: %s" % idb_tables)
-        return UnfoldPlan(plans, tables, idb_tables)
-
-    def proceed(self):
-        """The main entry point: type, then compute a strategy"""
-        self.type()
-        return self.strategy()
+        return self.var_types

@@ -21,8 +21,8 @@ Tests Openstack datasource
 import six
 import z3
 
-from octant import datalog_primitives as primitives
-from octant import source_openstack as source
+from octant.common import primitives
+from octant.source import openstack_source as source
 from octant.tests import base
 
 FIREWALL = {

@@ -16,9 +16,9 @@
 import logging
 from six import moves
 
-from octant import base
-from octant import datalog_ast as ast
-from octant import datalog_primitives as primitives
+from octant.common import ast
+from octant.common import base
+from octant.datalog import operations
 
 
 def type_theory(rules, extensible_tables, datasource):
@@ -64,7 +64,7 @@ def type_theory(rules, extensible_tables, datasource):
 
             Comparison are a particular case, due to polymorphism.
             """
-            if primitives.is_primitive(atom):
+            if operations.is_primitive(atom):
                 atom.types = [None, None]
             elif atom.table in dict_tables:
                 atom.types = dict_tables[atom.table]
@@ -97,7 +97,7 @@ def type_theory(rules, extensible_tables, datasource):
             return scheme
 
         work_done = False
-        schema = primitives.OPERATIONS[expr.operation]
+        schema = operations.OPERATIONS[expr.operation]
         if expr.var_types is None:
             expr.var_types = [None] * schema.ty_vars
         typ_scheme_res = get_type(schema.result)
@@ -162,7 +162,7 @@ def type_theory(rules, extensible_tables, datasource):
                                 param_type,
                                 atom
                             ))
-        if primitives.is_primitive(atom):
+        if operations.is_primitive(atom):
             param0 = atom.types[0]
             param1 = atom.types[1]
             if param0 is None:

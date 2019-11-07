@@ -23,10 +23,10 @@ Tests for `datalog_source` module.
 
 import mock
 
-from octant import base as obase
-from octant import datalog_ast as ast
-from octant import datalog_primitives as primitives
-from octant import datalog_source as source
+from octant.common import ast
+from octant.common import base as obase
+from octant.common import primitives
+from octant.source import source
 from octant.tests import base
 
 
@@ -99,7 +99,7 @@ class TestDatasource(base.TestCase):
         self.assertEqual(expected, buffer)
 
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_source.open")
+    @mock.patch("octant.source.source.open")
     def test_save(self, mock_open, mock_conf):
         mock_conf.save = "file"
         mock_conf.restore = None
@@ -115,7 +115,7 @@ class TestDatasource(base.TestCase):
         ])
 
     @mock.patch("oslo_config.cfg.CONF")
-    @mock.patch("octant.datalog_source.open")
+    @mock.patch("octant.source.source.open")
     def test_restore(self, mock_open, mock_conf):
         mock_conf.save = None
         mock_conf.restore = "file"

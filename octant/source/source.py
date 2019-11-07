@@ -21,7 +21,7 @@ import csv
 
 from oslo_config import cfg
 
-from octant import base
+from octant.common import base
 
 TableAccessor = namedtuple('TableAccessor', ['session', 'access', 'fields'])
 

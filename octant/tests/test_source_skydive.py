@@ -22,9 +22,9 @@ import mock
 import six
 import z3
 
-from octant import datalog_primitives as primitives
-from octant import datalog_source as datasource
-from octant import source_skydive as source
+from octant.common import primitives
+from octant.source import skydive_source as source
+from octant.source import source as datasource
 from octant.tests import base
 
 NODES = [

@@ -21,9 +21,9 @@ test_datalog_typechecker
 Tests for `datalog_typecheker` module.
 """
 
-from octant import base as obase
-from octant import datalog_parser as parser
-from octant import datalog_typechecker as typechecker
+from octant.common import base as obase
+from octant.datalog import typechecker
+from octant.front import parser
 from octant.tests import base
 
 

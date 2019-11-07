@@ -18,11 +18,11 @@ from six import moves
 
 from oslo_config import cfg
 
-from octant import base
-from octant import datalog_ast as ast
-from octant import datalog_primitives as primitives
-from octant import datalog_typechecker as typechecker
-from octant import datalog_unfolding as unfolding
+from octant.common import ast
+from octant.common import base
+from octant.datalog import operations
+from octant.datalog import typechecker
+from octant.datalog import unfolding
 
 
 class Z3Compiler(object):
@@ -65,7 +65,7 @@ class Z3Compiler(object):
                 args[i] = copy.deepcopy(arg)
 
             elif isinstance(args[i], ast.Operation):
-                nb_vars = primitives.OPERATIONS[args[i].operation].ty_vars
+                nb_vars = operations.OPERATIONS[args[i].operation].ty_vars
                 args[i].var_types = [None] * nb_vars
                 self.substitutes_constants_in_array(args[i].args)
 
