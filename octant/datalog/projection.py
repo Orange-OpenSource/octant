@@ -13,9 +13,36 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import collections
 import itertools
+import six
 
 from octant.common import ast
+
+#: Inclusion tree. Sons of a node are subsets of the root of the node.
+#: .. py:attribute:: root
+#:    The set represented by this tree node
+#: .. py:attribute: children
+#     Nodes representing subsets of the root set
+InclusionTree = collections.namedtuple('InclusionTree', ['root', 'children'])
+
+
+def inclusion_tree(elt):
+    return InclusionTree(elt, [])
+
+
+def add_inclusion(elt, tree):
+    """Adds an element to an inclusion tree
+
+    :param elt: element to add
+    :param tree: the inclusion tree to complete
+    :returns: True iff elt is a subset of tree.root
+    """
+    if elt <= tree.root:
+        return False
+    if all(not add_inclusion(elt, child) for child in tree.children):
+        tree.children.append(inclusion_tree(elt))
+    return True
 
 
 def head_table(rule):
@@ -27,8 +54,7 @@ def extract_vars_from_plan(unfold_plan):
     return (
         v
         for (_, plan) in unfold_plan.plan
-        for action in plan
-        for (_, variables) in action
+        for (_, variables) in plan
         for v in variables)
 
 
@@ -71,19 +97,28 @@ class Projection(object):
         self.rules.sort(key=head_table)
         self.unfolded = extract_vars_from_plan(unfold_plan)
         self.grounded = {}
-        self.partials = {}
 
     def compute(self):
-        self.grounded = self.get_partially_ground_preds()
+        grounded = self.get_partially_ground_preds()
+        partials = {}
         for rule in self.rules:
             for atom in rule.body:
                 partial = {
                     i
-                    for i in self.grounded.get(atom.table, [])
+                    for i in grounded.get(atom.table, [])
                     if self.is_variable(atom.args[i])}
                 if len(partial) == 0:
                     continue
-                self.partials.setdefault(atom.table, set()).add(partial)
+                partials.setdefault(atom.table, set()).add(
+                    frozenset(partial))
+
+        for table, gdvars in six.iteritems(grounded):
+            base = inclusion_tree(gdvars)
+            subs = list(partials.get(table, set()))
+            subs.sort(key=lambda e: len(e), reverse=True)
+            for partial in subs:
+                add_inclusion(partial, base)
+            self.grounded[table] = base
 
     def get_partially_ground_preds(self):
         """Gives back a map of the ground arguments of a table
@@ -100,12 +135,12 @@ class Projection(object):
             table: set.intersection(
                 *({i
                    for i, term in enumerate(r.head.args)
-                   if self.is_variable(term)}
+                   if not self.is_variable(term)}
                   for r in group_rule))
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}
 
     def is_variable(self, term):
         return (
-            not (isinstance(term, ast.Variable)) or
-            term.fullid() in self.unfolded)
+            isinstance(term, ast.Variable) and
+            term.full_id() not in self.unfolded)

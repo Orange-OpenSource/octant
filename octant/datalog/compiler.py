@@ -21,6 +21,7 @@ from oslo_config import cfg
 from octant.common import ast
 from octant.common import base
 from octant.datalog import operations
+from octant.datalog import projection
 from octant.datalog import typechecker
 from octant.datalog import unfolding
 
@@ -50,6 +51,8 @@ class Z3Compiler(object):
             unfolder = unfolding.Unfolding(
                 self.rules, self.extensible_tables, z3compiler)
             self.unfold_plan = unfolder.proceed()
+            project = projection.Projection(self.rules, self.unfold_plan)
+            project.compute()
         self.typed_tables = typechecker.type_theory(
             self.rules, self.extensible_tables, self.datasource)
 
