@@ -76,6 +76,7 @@ class TestDatalogTheory(base.TestCase):
         with base.capture_stdout() as out:
             octant.main()
         result = out.getvalue()
+        print(result)
         self.assertIs(True, "3452" in result)
 
     @mock.patch("octant.front.main.sys.exit")

@@ -67,6 +67,8 @@ class Z3Theory(object):
     def build_theory(self):
         """Builds the Z3 theory"""
         self.build_relations()
+        if self.compiler.project is not None:
+            self.compiler.project.set_relations(self.relations)
         # TODO(piac6784) Retrieve table values as requested
         # by self.compiler.unfold_plan. Build a datastructure with
         # table columns needed (or all columns to begin.)
@@ -147,8 +149,13 @@ class Z3Theory(object):
             compiled_atom = z3.simplify(
                 operations.COMPARISON[atom.table](args))
         else:
-            relation = self.relations[atom.table]
-            compiled_atom = relation(*args)
+            if (self.compiler.project is not None and
+                    self.compiler.project.is_specialized(atom.table)):
+                compiled_atom = self.compiler.project.translate(
+                    self.context, atom, args)
+            else:
+                relation = self.relations[atom.table]
+                compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
     def build_rule(self, rule, env):
@@ -163,7 +170,7 @@ class Z3Theory(object):
 
     def build_rules(self):
         """Compiles rules to Z3"""
-        if cfg.CONF.doc and cfg.CONF.unfold:
+        if self.compiler.unfold_plan is not None:
             plan = self.compiler.unfold_plan
             env = unfolding.environ_from_plan(plan)
         else:
@@ -182,6 +189,8 @@ class Z3Theory(object):
                 self.dump_primitive_tables(fd)
                 primitives.dump_translations(fd)
                 fd.write(str(self.context))
+        if self.compiler.project is not None:
+            self.compiler.project.reconciliate(self.context)
 
     def dump_primitive_tables(self, fd):
         fd.write("; *** primitive table declarations ***\n\n")

@@ -13,36 +13,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import collections
 import itertools
 import six
+import z3
 
 from octant.common import ast
-
-#: Inclusion tree. Sons of a node are subsets of the root of the node.
-#: .. py:attribute:: root
-#:    The set represented by this tree node
-#: .. py:attribute: children
-#     Nodes representing subsets of the root set
-InclusionTree = collections.namedtuple('InclusionTree', ['root', 'children'])
-
-
-def inclusion_tree(elt):
-    return InclusionTree(elt, [])
-
-
-def add_inclusion(elt, tree):
-    """Adds an element to an inclusion tree
-
-    :param elt: element to add
-    :param tree: the inclusion tree to complete
-    :returns: True iff elt is a subset of tree.root
-    """
-    if elt <= tree.root:
-        return False
-    if all(not add_inclusion(elt, child) for child in tree.children):
-        tree.children.append(inclusion_tree(elt))
-    return True
 
 
 def head_table(rule):
@@ -51,11 +26,11 @@ def head_table(rule):
 
 
 def extract_vars_from_plan(unfold_plan):
-    return (
+    return {
         v
         for (_, plan) in unfold_plan.plan
         for (_, variables) in plan
-        for v in variables)
+        for v in variables}
 
 
 class Projection(object):
@@ -95,30 +70,137 @@ class Projection(object):
     def __init__(self, rules, unfold_plan):
         self.rules = rules
         self.rules.sort(key=head_table)
-        self.unfolded = extract_vars_from_plan(unfold_plan)
+        if unfold_plan is not None:
+            self.unfolded = extract_vars_from_plan(unfold_plan)
+        else:
+            self.unfolded = set()
         self.grounded = {}
+        self.items = {}
+        self.count = 0
+        self.relations = None
 
     def compute(self):
-        grounded = self.get_partially_ground_preds()
-        partials = {}
-        for rule in self.rules:
-            for atom in rule.body:
-                partial = {
-                    i
-                    for i in grounded.get(atom.table, [])
-                    if self.is_variable(atom.args[i])}
-                if len(partial) == 0:
-                    continue
-                partials.setdefault(atom.table, set()).add(
-                    frozenset(partial))
+        self.grounded = self.get_partially_ground_preds()
 
-        for table, gdvars in six.iteritems(grounded):
-            base = inclusion_tree(gdvars)
-            subs = list(partials.get(table, set()))
-            subs.sort(key=lambda e: len(e), reverse=True)
-            for partial in subs:
-                add_inclusion(partial, base)
-            self.grounded[table] = base
+    def set_relations(self, relations):
+        self.relations = relations
+        # We initialize items with the case no var. We need it for queries.
+        # We could optimize queries but it may prove rather tough to perform
+        # because relation definition should be "done" at this point.
+        self.items = {
+            table: {(): {(): relations[table]}} for table in self.grounded
+        }
+
+    def translate(self, context, atom, args):
+        """Translate to specialized atom.
+
+        Given an atom using a predicate to specialize, gives back the
+        specialisation predicate and stores the ground parts for
+        reconciliation later.
+        :param atom: the atom to specialized.
+        :returns: a specialized atom (with usually less variables).
+        """
+
+        table = atom.table
+        if table in self.grounded:
+            expanded_pos = self.grounded[table]
+            fix = (
+                i
+                for (i, arg) in enumerate(atom.args)
+                if not self.is_variable(arg) and i in expanded_pos)
+            fixed_pos = tuple(sorted(fix))
+            fixed_args = tuple(args[pos] for pos in fixed_pos)
+            pred = self.get_pred(context, table, fixed_pos, fixed_args)
+
+            remain_args = (
+                arg
+                for (pos, arg) in enumerate(args)
+                if pos not in fixed_pos)
+            return pred(*remain_args)
+        else:
+            raise Exception("Bad call")
+
+    def is_specialized(self, table):
+        return table in self.grounded
+
+    def get_pred(self, context, table, fixed_pos, fixed_args):
+        """Find the specialized predicate.
+
+        :param table: the table that is specialized
+        :param fixed_pos: the tuple of positions that are specialized
+        :param fixed_args: the values at those positions
+        :return: a new predicate unique for those positions and values.
+        """
+        table_row = self.items.setdefault(table, {})
+        row = table_row.setdefault(fixed_pos, {})
+        if fixed_args in row:
+            return row[fixed_args]
+        f = self.relations[table]
+        pred_typs = [
+            f.domain(pos)
+            for pos in range(f.arity())
+            if pos not in fixed_pos
+        ]
+        pred_typs.append(z3.BoolSort())
+        pred_name = "%s_%d" % (table, self.count)
+        self.count += 1
+        pred = z3.Function(pred_name, *pred_typs)
+        context.register_relation(pred)
+        row[fixed_args] = pred
+        return pred
+
+    def reconciliate(self, context):
+        """Generate specialization predicates
+
+        Translation has generated semi specialized predicates. It is time now
+        to define those semi specialized predicates using the fully specialized
+        ones.
+
+        :param context: A Z3 context to create the new rules.
+        """
+        for table, fixed_pos in six.iteritems(self.grounded):
+            base_pred = self.relations[table]
+            arity = base_pred.arity()
+            # For each argument of the base pred we build a variable
+            vars = [
+                z3.Const("V_{}_{}".format(table, i), base_pred.domain(i))
+                for i in range(arity)
+            ]
+            # All the tuples of ground values associated to our pred.
+            row = self.items.get(table, {})
+            # from argument position to index in the tuple of ground value.
+            idx = {i: p for p, i in enumerate(fixed_pos)}
+            # enumerate all the values and associated pred.
+            for val1, pred1 in six.iteritems(row.get(fixed_pos, {})):
+                # get partial predicates
+                for partial_pos, valpred in six.iteritems(row):
+                    if partial_pos == fixed_pos:
+                        # not this one: it is not partial
+                        continue
+                    # project our full tuple to what is fixed for this
+                    # combination
+                    val2 = tuple(val1[idx[pos]] for pos in partial_pos)
+                    pred2 = valpred.get(val2, None)
+                    if pred2 is None:
+                        continue
+                    # We found a predicate. We build the rule.
+                    #    forall args1. pred2(args2) :- pred1(args1)
+                    # args2 is args1 augmented with fixed args from the record
+                    # not captured by pred2.
+                    args1 = [
+                        vars[i]
+                        for i in range(arity)
+                        if i not in fixed_pos
+                    ]
+                    args2 = [
+                        (val1[idx[i]] if i in fixed_pos else vars[i])
+                        for i in range(arity)
+                        if i not in partial_pos
+                    ]
+                    rule = z3.Implies(pred1(*args1), pred2(*args2))
+                    if len(args1) > 0:
+                        rule = z3.ForAll(args1, rule)
+                    context.rule(rule)
 
     def get_partially_ground_preds(self):
         """Gives back a map of the ground arguments of a table
@@ -132,11 +214,11 @@ class Projection(object):
                  positions (integers) that are ground for this table.
         """
         return {
-            table: set.intersection(
+            table: tuple(sorted(set.intersection(
                 *({i
                    for i, term in enumerate(r.head.args)
                    if not self.is_variable(term)}
-                  for r in group_rule))
+                  for r in group_rule))))
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}
 

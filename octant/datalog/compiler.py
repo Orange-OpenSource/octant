@@ -37,6 +37,7 @@ class Z3Compiler(object):
         self.constants = constants
         self.typed_tables = {}
         self.unfold_plan = None
+        self.project = None
 
     def compile(self, z3compiler):
         """Compile preprocess high level Datalog.
@@ -48,11 +49,14 @@ class Z3Compiler(object):
         self.substitute_constants()
         self.find_base_relations()
         if cfg.CONF.doc:
-            unfolder = unfolding.Unfolding(
-                self.rules, self.extensible_tables, z3compiler)
-            self.unfold_plan = unfolder.proceed()
-            project = projection.Projection(self.rules, self.unfold_plan)
-            project.compute()
+            if cfg.CONF.unfold:
+                unfolder = unfolding.Unfolding(
+                    self.rules, self.extensible_tables, z3compiler)
+                self.unfold_plan = unfolder.proceed()
+            if cfg.CONF.spec:
+                self.project = projection.Projection(
+                    self.rules, self.unfold_plan)
+                self.project.compute()
         self.typed_tables = typechecker.type_theory(
             self.rules, self.extensible_tables, self.datasource)
 
