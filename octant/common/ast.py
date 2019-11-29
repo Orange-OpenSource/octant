@@ -117,7 +117,10 @@ class Expr(AST):
         self.type = dtype
 
     def variables(self):
-        """Free variables (default is none)"""
+        """Free variables (default is none)
+
+        :returns: the set of variables full identifiers (string x int)
+        """
         # pylint: disable=no-self-use
         return set()
 

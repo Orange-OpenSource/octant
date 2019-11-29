@@ -14,12 +14,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from collections import namedtuple
 import itertools
 import logging
 import six
 
+from octant.common import ast
 from octant.datalog import operations
 from octant.datalog import origin
+
+
+loc_type = namedtuple("loc_type", ["type", "occ"])
+candidate = namedtuple("candidate", ["type", "occ", "var"])
+typvar = namedtuple("typvar", ["type", "var"])
 
 
 class UnfoldPlan(object):
@@ -65,14 +72,24 @@ def get_to_solve(rule):
     correctly by the difference of cube domain. It must be simplified to
     reach only one free variable.
 
-    :returns: a list of pairs position of atom to simplify and the
-        variable list associated to the atom.
+    :returns: a list of triples made of position of atom to simplify, the
+        variable list associated to the atom and the size of the list expected.
     """
-    return [
-        (pos, vlist)
-        for pos, atom in enumerate(rule.body)
+    id_problems = [
+        ([var.full_id()], 0)
+        for var in rule.head.args
+        if isinstance(var, ast.Variable)
+        if var.type == 'id'
+    ]
+    strength_problems = [
+        (vlist, 1)
+        for atom in rule.body
         for vlist in (atom.variables(),)
         if operations.is_primitive(atom) and len(vlist) > 1]
+    if len(strength_problems) > 0:
+        return id_problems[0:1] + strength_problems
+    else:
+        return id_problems[0:1]
 
 
 def candidates(problems):
@@ -82,7 +99,7 @@ def candidates(problems):
         variable list associated to the atom.
     :returns: a set of variables.
     """
-    return {var for (_, vl) in problems for var in vl}
+    return {var for (vl, _) in problems for var in vl}
 
 
 def environ_from_plan(unfold_plan):
@@ -153,12 +170,15 @@ class Unfolding(object):
         debug = logging.getLogger().debug
         all_vars = rule.body_variables()
         all_types = {
-            v: [(t, origin.occurrence(t))
+            v: [loc_type(t, origin.occurrence(t))
                 for t in origin.simplify_to_ground_types(var_types.get(v, []))
                 ]
             for v in all_vars
         }
         problems = get_to_solve(rule)
+        print("*** {} ****".format(rule.head.table))
+        print(problems)
+        print(all_types)
         if problems == []:
             return None
         debug("Rule to unfold: %s", rule)
@@ -167,22 +187,22 @@ class Unfolding(object):
             debug("Current problem\n:%s", problems)
             candidate_vars = candidates(problems)
             candidate_types = [
-                (pair[0], pair[1], v)
+                candidate(pair.type, pair.occ, v)
                 for v in candidate_vars
-                for pair in all_types.get(v)]
+                for pair in all_types.get(v, [])]
             simple_types = [
-                p for p in candidate_types if origin.is_ground(p[0])]
+                p for p in candidate_types if origin.is_ground(p.type)]
             debug("Simple types for problem\n:%s", simple_types)
             is_simple = True
             if simple_types == []:
                 is_simple = False
                 simple_types = [
-                    p for p in candidate_types if origin.is_disj(p[0])]
+                    p for p in candidate_types if origin.is_disj(p.type)]
                 if simple_types == []:
                     debug("Non simple types %s", candidate_types)
                     debug("Plan may be incomplete.")
                     return plan
-            simple_occ = list(map(lambda p: p[1], simple_types))
+            simple_occ = list(map(lambda p: p.occ, simple_types))
             simple_occ.sort()
             simple_occ_count = [
                 (occ, len(list(grp)))
@@ -192,14 +212,14 @@ class Unfolding(object):
             debug("Sorted simple occs:\n%s", simple_occ_count)
             occ = simple_occ_count[0][0]
             solved = [
-                (t, v)
+                typvar(t, v)
                 for (v, l) in six.iteritems(all_types)
                 for (t, o) in l
                 if o == occ
             ]
-            solved_vars = [pair[1] for pair in solved]
+            solved_vars = [pair.var for pair in solved]
             if is_simple:
-                tspec = ((solved[0][0].table, [t.pos for (t, v) in solved]), )
+                tspec = ((solved[0].type.table, [t.pos for (t, v) in solved]),)
             else:
                 skeleton = solved[0][0].args
                 tspec = tuple(
@@ -209,11 +229,11 @@ class Unfolding(object):
             debug("Solved variables:\n%s", solved_vars)
             # We expect less problems to solve and at least simpler ones.
             problems = [
-                (pos, vlist_reduced)
-                for (pos, vlist) in problems
+                (vlist_reduced, size)
+                for (vlist, size) in problems
                 for vlist_reduced in (
                     [v for v in vlist if v not in solved_vars], )
-                if len(vlist_reduced) > 1
+                if len(vlist_reduced) > size
             ]
             debug('-' * 80)
         return plan

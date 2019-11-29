@@ -48,6 +48,8 @@ class Z3Compiler(object):
         """
         self.substitute_constants()
         self.find_base_relations()
+        self.typed_tables = typechecker.type_theory(
+            self.rules, self.extensible_tables, self.datasource)
         if cfg.CONF.doc:
             if cfg.CONF.unfold:
                 unfolder = unfolding.Unfolding(
@@ -57,8 +59,6 @@ class Z3Compiler(object):
                 self.project = projection.Projection(
                     self.rules, self.unfold_plan)
                 self.project.compute()
-        self.typed_tables = typechecker.type_theory(
-            self.rules, self.extensible_tables, self.datasource)
 
     def substitutes_constants_in_array(self, args):
         """Substitute constants in arguments arrays"""
