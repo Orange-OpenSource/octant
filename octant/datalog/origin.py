@@ -406,17 +406,26 @@ class Origin(object):
         :returns: next value of table types.
         :rtype: map from string to array of type.
         """
-        def type_arg_at(arg, table, i):
+        def type_arg_at(arg, table, i, id):
             return (
                 self.var_types.get(arg.full_id(), top)
                 if isinstance(arg, ast.Variable)
-                else UFGround(i, table, None))
+                # TODO(pc): 0 should be id but then there is something wrong
+                else UFGround(i, table, ((id, -1), None)))
+
+        def head_atom_ground(rule):
+            return not any(
+                isinstance(arg, ast.Variable) for arg in rule.head.args)
 
         return {
             table: [
-                reduce_disj({type_arg_at(arg, table, i) for arg in args})
-                for i, args in enumerate(zip(*(rule.head.args
-                                               for rule in group_rule)))]
+                reduce_disj(set(tlist))
+                for tlist in zip(*(
+                    [type_arg_at(arg, table, i, id)
+                     for i, arg in enumerate(rule.head.args)]
+                    for rule in group_rule
+                    for id in (-1 if head_atom_ground(rule) else rule.id,)
+                    ))]
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}
 
