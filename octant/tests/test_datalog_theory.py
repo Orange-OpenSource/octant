@@ -34,6 +34,20 @@ def pp(text):
     return parser.wrapped_parse(text)
 
 
+def standard_cfg(mock_cfg):
+    mock_cfg.doc = False
+    mock_cfg.smt2 = None
+    mock_cfg.csv = False
+    mock_cfg.time = True
+    mock_cfg.query = ["p(X)"]
+    mock_cfg.theory = ["file"]
+    mock_cfg.restore = None
+    mock_cfg.save = None
+    mock_cfg.debug = False
+    mock_cfg.smt2 = None
+    mock_cfg.filesource = []
+
+
 PROG1 = """
     p(X) :- X = 3:int4.
     q(X) :- X = 3:int4.
@@ -57,17 +71,23 @@ class TestDatalogTheory(base.TestCase):
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
-    def test_build_theory_simple(self, src1, src2):
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_build_theory_simple(self, mock_cfg, src1, src2):
+        standard_cfg(mock_cfg)
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
         r = theo.query(parser.parse_atom("p(X)"))
-        self.assertEqual((['X'], [z3r.Cube({0: 3})]), r)
+        self.assertEqual((['X'], [z3r.Cube({0: 3}, 1)]), r)
         r = theo.query(parser.parse_atom("q(X)"))
-        self.assertEqual((['X'], [z3r.Cube({0: 2}), z3r.Cube({0: 3})]), r)
+        self.assertEqual(
+            (['X'], [z3r.Cube({0: 2}, 1), z3r.Cube({0: 3}, 1)]),
+            r)
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
-    def test_query_bad(self, src1, src2):
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_query_bad(self, mock_cfg, src1, src2):
+        standard_cfg(mock_cfg)
         theo = theory.Z3Theory(pp(PROG1))
         theo.build_theory()
         self.assertRaises(
@@ -79,13 +99,17 @@ class TestDatalogTheory(base.TestCase):
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
-    def test_build_bad(self, src1, src2):
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_build_bad(self, mock_cfg, src1, src2):
+        standard_cfg(mock_cfg)
         theo = theory.Z3Theory(pp("p(X:ukw_type)."))
         self.assertRaises(obase.Z3TypeError, theo.build_theory)
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")
-    def test_simple_result(self, src1, src2):
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_simple_result(self, mock_cfg, src1, src2):
+        standard_cfg(mock_cfg)
         theo = theory.Z3Theory(pp("p(). q() :- !p()."))
         theo.build_theory()
         self.assertEqual(([], True), theo.query(parser.parse_atom("p()")))
@@ -93,9 +117,11 @@ class TestDatalogTheory(base.TestCase):
 
     @mock.patch("octant.source.openstack_source.register", new=mocked_register)
     @mock.patch("octant.source.skydive_source.register")
-    def test_with_source(self, src1):
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_with_source(self, mock_cfg, src1):
+        standard_cfg(mock_cfg)
         theo = theory.Z3Theory(pp("p(X) :- q(a=X)."))
         theo.build_theory()
         self.assertEqual(
-            (['X'], [z3r.Cube({0: 421}), z3r.Cube({0: 567})]),
+            (['X'], [z3r.Cube({0: 421}, 1), z3r.Cube({0: 567}, 1)]),
             theo.query(parser.parse_atom("p(X)")))

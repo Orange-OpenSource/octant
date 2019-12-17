@@ -150,7 +150,7 @@ class Variable(Expr):
         self.rule_id = None
 
     def variables(self):
-        return set([self.full_id()])
+        return set([self])
 
     def __repr__(self):
         expr_repr = (

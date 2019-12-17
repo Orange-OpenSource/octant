@@ -28,7 +28,7 @@ def head_table(rule):
 def extract_vars_from_plan(unfold_plan):
     return {
         v
-        for (_, plan) in unfold_plan.plan
+        for plan in unfold_plan.plan.values()
         for (_, variables) in plan
         for v in variables}
 
@@ -70,6 +70,7 @@ class Projection(object):
     def __init__(self, rules, unfold_plan):
         self.rules = rules
         self.rules.sort(key=head_table)
+        self.bool = z3.BoolSort()
         if unfold_plan is not None:
             self.unfolded = extract_vars_from_plan(unfold_plan)
         else:
@@ -109,7 +110,7 @@ class Projection(object):
                 for (i, arg) in enumerate(atom.args)
                 if not self.is_variable(arg) and i in expanded_pos)
             fixed_pos = tuple(sorted(fix))
-            fixed_args = tuple(args[pos] for pos in fixed_pos)
+            fixed_args = tuple([args[pos] for pos in fixed_pos])
             pred = self.get_pred(context, table, fixed_pos, fixed_args)
 
             remain_args = (
@@ -133,15 +134,16 @@ class Projection(object):
         """
         table_row = self.items.setdefault(table, {})
         row = table_row.setdefault(fixed_pos, {})
-        if fixed_args in row:
-            return row[fixed_args]
+        pred = row.get(fixed_args, None)
+        if pred is not None:
+            return pred
         f = self.relations[table]
         pred_typs = [
             f.domain(pos)
             for pos in range(f.arity())
             if pos not in fixed_pos
         ]
-        pred_typs.append(z3.BoolSort())
+        pred_typs.append(self.bool)
         pred_name = "%s_%d" % (table, self.count)
         self.count += 1
         pred = z3.Function(pred_name, *pred_typs)
@@ -179,7 +181,7 @@ class Projection(object):
                         continue
                     # project our full tuple to what is fixed for this
                     # combination
-                    val2 = tuple(val1[idx[pos]] for pos in partial_pos)
+                    val2 = tuple([val1[idx[pos]] for pos in partial_pos])
                     pred2 = valpred.get(val2, None)
                     if pred2 is None:
                         continue
@@ -225,4 +227,4 @@ class Projection(object):
     def is_variable(self, term):
         return (
             isinstance(term, ast.Variable) and
-            term.full_id() not in self.unfolded)
+            term not in self.unfolded)

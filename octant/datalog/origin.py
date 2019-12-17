@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import itertools
 import six
 
@@ -123,6 +124,11 @@ class UFDisj(UFType):
 
     def __repr__(self):
         return "UFDisj%s" % (self.args,)
+
+
+class GroundHead(collections.namedtuple("GroundHead", ["table", "rid"])):
+    def __str__(self):
+        return self.table + "_(" + str(self.rid) + ")"
 
 
 top = UFTop()
@@ -407,11 +413,10 @@ class Origin(object):
         :rtype: map from string to array of type.
         """
         def type_arg_at(arg, table, i, id):
-            return (
-                self.var_types.get(arg.full_id(), top)
-                if isinstance(arg, ast.Variable)
-                # TODO(pc): 0 should be id but then there is something wrong
-                else UFGround(i, table, ((id, -1), None)))
+            if isinstance(arg, ast.Variable):
+                return self.var_types.get(arg.full_id(), top)
+            real = table if id is None else GroundHead(table, id)
+            return UFGround(i, real, None)
 
         def head_atom_ground(rule):
             return not any(
@@ -424,7 +429,7 @@ class Origin(object):
                     [type_arg_at(arg, table, i, id)
                      for i, arg in enumerate(rule.head.args)]
                     for rule in group_rule
-                    for id in (-1 if head_atom_ground(rule) else rule.id,)
+                    for id in (None if head_atom_ground(rule) else rule.id,)
                     ))]
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}

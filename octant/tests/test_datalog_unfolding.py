@@ -106,49 +106,23 @@ class TestUnfolding(base.TestCase):
         t3 = origin.UFGround(2, "v", None)
         t4 = origin.UFDisj((t1, t2))
         t5 = origin.UFDisj((t1, t3))
-        self.assertEqual(
-            origin.UFConj((t1, t2)),
-            origin.reduce_conj([t1, t2, t4, t5]))
-        self.assertEqual(t4, origin.reduce_conj([t4, t5]))
+        result = origin.reduce_conj([t1, t2, t4, t5])
+        self.assertIsInstance(result, origin.UFConj)
+        self.assertEqual(set(result.args), {t1, t2})
 
     def test_get_to_solve(self):
         prog = parser.wrapped_parse("t(X) :- p(X,Y), X = Y & 1, q(X), X < 10.")
         rule = prog[0]
-        id = rule.id
-        vars = {('X', id), ('Y', id)}
+        vars = rule.body_variables()
         # Only the first is to solve. There is only one variable in the
         # equality.
-        expected = [(1, vars)]
+        expected = [(vars, 1)]
         self.assertEqual(expected, unfolding.get_to_solve(prog[0]))
 
     def test_candidates(self):
         v1, v2, v3 = (('X', 0), ('Y', 0), ('Z', 0))
-        problems = [(1, {v1, v2}), (2, {v1, v3}), (3, {v1})]
+        problems = [({v1, v2}, 1), ({v1, v3}, 2), ({v1}, 3)]
         self.assertEqual({v1, v2, v3}, unfolding.candidates(problems))
-
-    def test_environ_from_plan(self):
-        plan = unfolding.UnfoldPlan(
-            plan=[
-                (1, [((('u', [2]),), ['x'])]),
-                (3, [((('t', [0, 3]),), ['x', 'y']),
-                     ((('u', [2]),), ['z'])])],
-            tables={'t': [0, 3], 'u': [2]},
-            contents={
-                't': [[0, 1], [2, 3]],
-                'u': [[4], [5]]
-            }
-        )
-        result = unfolding.environ_from_plan(plan)
-        expected1 = {(('x', 4),), (('x', 5),)}
-        expected3 = {
-            (('x', 0), ('y', 1), ('z', 4)), (('x', 0), ('y', 1), ('z', 5)),
-            (('x', 2), ('y', 3), ('z', 4)), (('x', 2), ('y', 3), ('z', 5))}
-        self.assertEqual({1, 3}, set(result.keys()))
-
-        def normalize(list):
-            return {tuple(sorted(record.items())) for record in list}
-        self.assertEqual(expected3, normalize(result[3]))
-        self.assertEqual(expected1, normalize(result[1]))
 
     def test_unfolding(self):
         prog = "t(X) :- p(X,Y), X = Y & 1.\ns(X) :- t(X), 2 = X & 2."
@@ -204,10 +178,6 @@ class TestUnfolding(base.TestCase):
         result = unfold.type_tables()
         typ_s0 = result['s'][0]
         self.assertIsInstance(typ_s0, origin.UFDisj)
-        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
-        self.assertEqual(
-            ['q', 's'],
-            sorted([t.table for t in result['s'][1].args]))
 
     def test_type(self):
         rules = parser.wrapped_parse(prog0)
@@ -217,10 +187,6 @@ class TestUnfolding(base.TestCase):
         result = unfold.table_types
         typ_s0 = result['s'][0]
         self.assertIsInstance(typ_s0, origin.UFDisj)
-        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
-        self.assertEqual(
-            ['q', 's'],
-            sorted([t.table for t in result['s'][1].args]))
 
     def test_strategy_1(self):
         rules = parser.wrapped_parse(prog1)

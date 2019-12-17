@@ -130,7 +130,7 @@ class Datasource(object):
         """check if it uses the cache"""
         return cfg.CONF.restore is not None
 
-    def retrieve_table(self, table_name, fields, mk_relation, extract=None):
+    def retrieve_table(self, table_name, fields, mk_relation):
         """Get the facts on the cloud or in the csv cache.
 
         :param table_name: the name of the table to retrieve
@@ -187,7 +187,6 @@ class Datasource(object):
             access_fields = [get_field(field) for field in fields]
         if self.csv_writer is not None:
             self.csv_writer.writerow([table_name] + fields)
-        result = None if extract is None else []
         for obj in objs:
             try:
                 extracted = [
@@ -199,12 +198,8 @@ class Datasource(object):
                         [marshall(raw) for (_, raw, marshall) in extracted])
                 args = [typ(raw) for (typ, raw, _) in extracted]
                 mk_relation(args)
-                if extract is not None:
-                    row = tuple(args[pos] for pos in extract)
-                    result.append(row)
             except Exception as exc:
                 print(
                     "Error while retrieving table {} on {}".format(
                         table_name, obj))
                 raise exc
-        return result
