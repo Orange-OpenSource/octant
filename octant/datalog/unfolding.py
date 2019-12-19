@@ -208,14 +208,16 @@ def plan_to_program(unfold_plan, context, datasource, relations, rules):
             for (pred, predvars) in main_pred_body
         ]
         debug("-" * 80)
-        rule = z3.ForAll(row, z3.Implies(z3.And(body), head))
-        debug(str(rule))
-        context.rule(rule)
+        mainrule = z3.ForAll(row, z3.Implies(z3.And(body), head))
+        debug(mainrule)
+        context.rule(mainrule)
         query = z3.Exists(row, head)
         context.query(query)
         raw_answer = context.get_answer()
         used_varsid = [var.full_id() for var in used_vars]
-        result[rid] = z3_result.z3_to_array_simple(raw_answer, used_varsid)
+        records = z3_result.z3_to_array_simple(raw_answer, used_varsid)
+        debug("Found %d records" % len(records))
+        result[rid] = records
         debug("=" * 80)
     return result
 

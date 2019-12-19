@@ -55,6 +55,11 @@ PROG1 = """
     r(X) :- X = 2:int4, !X = 3:int4.
 """
 
+PROG2 = """
+    p(X) :- X > 2:int4, 2=3.
+    p(X) :- X <= 3:int4, 2=2.
+"""
+
 
 def mocked_register(ds):
     content = {
@@ -82,6 +87,17 @@ class TestDatalogTheory(base.TestCase):
         self.assertEqual(
             (['X'], [z3r.Cube({0: 2}, 1), z3r.Cube({0: 3}, 1)]),
             r)
+
+    @mock.patch("oslo_config.cfg.CONF")
+    def test_build_theory_simplify(self, mock_cfg):
+        standard_cfg(mock_cfg)
+        theo = theory.Z3Theory(pp(PROG2))
+        theo.build_theory()
+        rules = theo.context.get_rules()
+        # Just one rule and just one atom in the rule body.
+        self.assertEqual(1, len(rules))
+        expected = '(forall ((X (_ BitVec 4))) (=> (bvsle X #x3) (p X)))'
+        self.assertEqual(expected, rules[0].sexpr())
 
     @mock.patch("octant.source.openstack_source.register")
     @mock.patch("octant.source.skydive_source.register")

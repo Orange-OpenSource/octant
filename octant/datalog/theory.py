@@ -156,7 +156,8 @@ class Z3Theory(object):
         if any(z3.is_false(at) for at in body):
             return
         body = [at for at in body if not z3.is_true(at)]
-        term1 = head if body == [] else z3.Implies(z3.And(*body), head)
+        body_conj = body[0] if len(body) == 1 else z3.And(*body)
+        term1 = head if body == [] else z3.Implies(body_conj, head)
         term2 = (
             term1 if vars == {}
             else z3.ForAll(list(vars.values()), term1))

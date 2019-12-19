@@ -16,10 +16,14 @@
 
 """Tests for datalog_unfolding module"""
 
+import z3
+
 from octant.common import ast
+from octant.common import primitives
 from octant.datalog import origin
 from octant.datalog import unfolding
 from octant.front import parser
+from octant.source import source
 from octant.tests import base
 
 
@@ -211,3 +215,84 @@ class TestUnfolding(base.TestCase):
                    key=lambda p: p[0])
             for (plan, _) in result]
         self.assertEqual([[('p', [0])], [('p', [0]), ('q', [0])]], filtered)
+
+    def test_plan_to_program(self):
+        rules = parser.wrapped_parse(prog0)   # arbitrary not really used
+        rules[0].id = 0         # but we need a zero rule
+        fp = z3.Fixedpoint()
+        datasource = source.Datasource(primitives.TYPES)
+        octant_type = datasource.types["int4"]
+        z3_type = octant_type.type()
+
+        def mkv(v):
+            return z3.BitVecVal(v, z3_type)
+
+        p = z3.Function('p', z3_type, z3_type, z3.BoolSort())
+        q = z3.Function('q', z3_type, z3_type, z3.BoolSort())
+        for (x, y) in [(3, 0), (4, 1)]:
+            fp.add_rule(p(mkv(x), mkv(y)))
+        for (x, y) in [(5, 0), (6, 1)]:
+            fp.add_rule(q(mkv(x), mkv(y)))
+        relations = {'p': p, 'q': q}
+        x = ast.Variable("X", "int4")
+        y = ast.Variable("Y", "int4")
+        z = ast.Variable("Z", "int4")
+        for f in [p, q]:
+            fp.register_relation(f)
+        unfold_plan = unfolding.UnfoldPlan(
+            {0: [((('p', [1, 0]),), [x, y]),
+                 ((('q', [0, 1]),), [z, x])]},
+            {})
+        records = unfolding.plan_to_program(
+            unfold_plan, fp, datasource, relations, rules)
+        self.assertIn(0, records)
+        trimmed = sorted([
+            sorted((var, val.as_long()) for ((var, _), val) in rec.items())
+            for rec in records[0]
+        ], key=lambda t: t[0])
+        expected = [
+            [('X', 0), ('Y', 3), ('Z', 5)],
+            [('X', 1), ('Y', 4), ('Z', 6)]
+        ]
+        self.assertEqual(expected, trimmed)
+
+    def test_plan_to_program_idb(self):
+        rules = parser.wrapped_parse(prog0)   # arbitrary not really used
+        rules[0].id = 0
+        fp = z3.Fixedpoint()
+        datasource = source.Datasource(primitives.TYPES)
+        octant_type = datasource.types["int4"]
+        z3_type = octant_type.type()
+
+        def mkv(v):
+            return z3.BitVecVal(v, z3_type)
+
+        p = z3.Function('p', z3_type, z3_type, z3.BoolSort())
+        q = z3.Function('q', z3_type, z3_type, z3.BoolSort())
+        content = {
+            'p': [(mkv(3), mkv(0)), (mkv(4), mkv(1))]
+        }
+        for (x, y) in [(5, 0), (6, 1)]:
+            fp.add_rule(q(mkv(x), mkv(y)))
+        relations = {'p': p, 'q': q}
+        x = ast.Variable("X", "int4")
+        y = ast.Variable("Y", "int4")
+        z = ast.Variable("Z", "int4")
+        for f in [p, q]:
+            fp.register_relation(f)
+        unfold_plan = unfolding.UnfoldPlan(
+            {0: [((('p', [1, 0]),), [x, y]),
+                 ((('q', [0, 1]),), [z, x])]},
+            content)
+        records = unfolding.plan_to_program(
+            unfold_plan, fp, datasource, relations, rules)
+        self.assertIn(0, records)
+        trimmed = sorted([
+            sorted((var, val.as_long()) for ((var, _), val) in rec.items())
+            for rec in records[0]
+        ], key=lambda t: t[0])
+        expected = [
+            [('X', 0), ('Y', 3), ('Z', 5)],
+            [('X', 1), ('Y', 4), ('Z', 6)]
+        ]
+        self.assertEqual(expected, trimmed)
