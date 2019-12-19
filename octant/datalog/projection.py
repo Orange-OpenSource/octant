@@ -99,6 +99,7 @@ class Projection(object):
         specialisation predicate and stores the ground parts for
         reconciliation later.
         :param atom: the atom to specialized.
+        :param args: already compiled arguments.
         :returns: a specialized atom (with usually less variables).
         """
 
@@ -216,13 +217,16 @@ class Projection(object):
                  positions (integers) that are ground for this table.
         """
         return {
-            table: tuple(sorted(set.intersection(
+            table: tuple(sorted(ground_vars))
+            for table, group_rule in itertools.groupby(self.rules,
+                                                       key=head_table)
+            for ground_vars in (set.intersection(
                 *({i
                    for i, term in enumerate(r.head.args)
                    if not self.is_variable(term)}
-                  for r in group_rule))))
-            for table, group_rule in itertools.groupby(self.rules,
-                                                       key=head_table)}
+                  for r in group_rule)),)
+            if len(ground_vars) > 0
+        }
 
     def is_variable(self, term):
         return (
