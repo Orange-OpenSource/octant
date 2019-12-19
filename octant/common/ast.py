@@ -117,7 +117,10 @@ class Expr(AST):
         self.type = dtype
 
     def variables(self):
-        """Free variables (default is none)"""
+        """Free variables (default is none)
+
+        :returns: the set of variables full identifiers (string x int)
+        """
         # pylint: disable=no-self-use
         return set()
 
@@ -147,7 +150,7 @@ class Variable(Expr):
         self.rule_id = None
 
     def variables(self):
-        return set([self.full_id()])
+        return set([self])
 
     def __repr__(self):
         expr_repr = (

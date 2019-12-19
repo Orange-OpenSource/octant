@@ -123,18 +123,18 @@ class TestZ3Result(base.TestCase):
                 z3.Extract(3, 2, x) == bv2(3),
                 z3.Extract(7, 6, x) == bv2(2), y == bv(4))))
 
-        r1 = [z3r.Cube({0: z3r.Masked(0xc, 0xc)})]
-        r2 = [z3r.Cube({0: z3r.Masked(0x8c, 0xcc)})]
-        r3 = [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})]
+        r1 = [z3r.Cube({0: z3r.Masked(0xc, 0xc)}, 1)]
+        r2 = [z3r.Cube({0: z3r.Masked(0x8c, 0xcc)}, 1)]
+        r3 = [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)]
         r4 = [
             z3r.Doc(
-                z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})])]
+                z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)])]
         r5 = [
             z3r.Doc(
-                z3r.Cube({}),
-                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})])]
+                z3r.Cube({}, 1),
+                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)])]
         for (r, e) in [(r1, e1), (r2, e2), (r3, e3), (r4, e4), (r5, e5)]:
             self.assertEqual(r, z3r.z3_to_array(e, types))
 
@@ -142,7 +142,7 @@ class TestZ3Result(base.TestCase):
         with capture_stdout() as out:
             printer.print_csv(
                 ["X", "Y"],
-                [z3r.Cube({0: 2, 1: 3}), z3r.Cube({0: 4, 1: 5})])
+                [z3r.Cube({0: 2, 1: 3}, 1), z3r.Cube({0: 4, 1: 5}, 1)])
         self.assertEqual('P,X,Y\r\n+,2,3\r\n+,4,5\r\n\n', out.getvalue())
         with capture_stdout() as out:
             printer.print_csv([], True)
@@ -151,12 +151,12 @@ class TestZ3Result(base.TestCase):
     def test_print_csv_doc(self):
         answer = [
             z3r.Doc(
-                z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})]),
+                z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)]),
             z3r.Doc(
-                z3r.Cube({}),
-                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})])]
+                z3r.Cube({}, 1),
+                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)])]
         formatted = textwrap.dedent("""\
                     P,X,Y\r
                     +,16/48,*\r
@@ -172,12 +172,12 @@ class TestZ3Result(base.TestCase):
     def test_print_pretty_doc(self):
         answer = [
             z3r.Doc(
-                z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})]),
+                z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                [z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)]),
             z3r.Doc(
-                z3r.Cube({}),
-                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}),
-                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4})])]
+                z3r.Cube({}, 1),
+                [z3r.Cube({0: z3r.Masked(0x10, 0x30)}, 1),
+                 z3r.Cube({0: z3r.Masked(0x8c, 0xcc), 1: 4}, 1)])]
         formatted = textwrap.dedent("""\
             +===+=========+===+
             |   | X       | Y |

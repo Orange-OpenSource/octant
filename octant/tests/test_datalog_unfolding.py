@@ -16,10 +16,14 @@
 
 """Tests for datalog_unfolding module"""
 
+import z3
+
 from octant.common import ast
+from octant.common import primitives
 from octant.datalog import origin
 from octant.datalog import unfolding
 from octant.front import parser
+from octant.source import source
 from octant.tests import base
 
 
@@ -106,49 +110,23 @@ class TestUnfolding(base.TestCase):
         t3 = origin.UFGround(2, "v", None)
         t4 = origin.UFDisj((t1, t2))
         t5 = origin.UFDisj((t1, t3))
-        self.assertEqual(
-            origin.UFConj((t1, t2)),
-            origin.reduce_conj([t1, t2, t4, t5]))
-        self.assertEqual(t4, origin.reduce_conj([t4, t5]))
+        result = origin.reduce_conj([t1, t2, t4, t5])
+        self.assertIsInstance(result, origin.UFConj)
+        self.assertEqual(set(result.args), {t1, t2})
 
     def test_get_to_solve(self):
         prog = parser.wrapped_parse("t(X) :- p(X,Y), X = Y & 1, q(X), X < 10.")
         rule = prog[0]
-        id = rule.id
-        vars = {('X', id), ('Y', id)}
+        vars = rule.body_variables()
         # Only the first is to solve. There is only one variable in the
         # equality.
-        expected = [(1, vars)]
+        expected = [(vars, 1)]
         self.assertEqual(expected, unfolding.get_to_solve(prog[0]))
 
     def test_candidates(self):
         v1, v2, v3 = (('X', 0), ('Y', 0), ('Z', 0))
-        problems = [(1, {v1, v2}), (2, {v1, v3}), (3, {v1})]
+        problems = [({v1, v2}, 1), ({v1, v3}, 2), ({v1}, 3)]
         self.assertEqual({v1, v2, v3}, unfolding.candidates(problems))
-
-    def test_environ_from_plan(self):
-        plan = unfolding.UnfoldPlan(
-            plan=[
-                (1, [((('u', [2]),), ['x'])]),
-                (3, [((('t', [0, 3]),), ['x', 'y']),
-                     ((('u', [2]),), ['z'])])],
-            tables={'t': [0, 3], 'u': [2]},
-            contents={
-                't': [[0, 1], [2, 3]],
-                'u': [[4], [5]]
-            }
-        )
-        result = unfolding.environ_from_plan(plan)
-        expected1 = {(('x', 4),), (('x', 5),)}
-        expected3 = {
-            (('x', 0), ('y', 1), ('z', 4)), (('x', 0), ('y', 1), ('z', 5)),
-            (('x', 2), ('y', 3), ('z', 4)), (('x', 2), ('y', 3), ('z', 5))}
-        self.assertEqual({1, 3}, set(result.keys()))
-
-        def normalize(list):
-            return {tuple(sorted(record.items())) for record in list}
-        self.assertEqual(expected3, normalize(result[3]))
-        self.assertEqual(expected1, normalize(result[1]))
 
     def test_unfolding(self):
         prog = "t(X) :- p(X,Y), X = Y & 1.\ns(X) :- t(X), 2 = X & 2."
@@ -204,10 +182,6 @@ class TestUnfolding(base.TestCase):
         result = unfold.type_tables()
         typ_s0 = result['s'][0]
         self.assertIsInstance(typ_s0, origin.UFDisj)
-        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
-        self.assertEqual(
-            ['q', 's'],
-            sorted([t.table for t in result['s'][1].args]))
 
     def test_type(self):
         rules = parser.wrapped_parse(prog0)
@@ -217,10 +191,6 @@ class TestUnfolding(base.TestCase):
         result = unfold.table_types
         typ_s0 = result['s'][0]
         self.assertIsInstance(typ_s0, origin.UFDisj)
-        self.assertEqual(['p', 'q'], sorted([t.table for t in typ_s0.args]))
-        self.assertEqual(
-            ['q', 's'],
-            sorted([t.table for t in result['s'][1].args]))
 
     def test_strategy_1(self):
         rules = parser.wrapped_parse(prog1)
@@ -245,3 +215,84 @@ class TestUnfolding(base.TestCase):
                    key=lambda p: p[0])
             for (plan, _) in result]
         self.assertEqual([[('p', [0])], [('p', [0]), ('q', [0])]], filtered)
+
+    def test_plan_to_program(self):
+        rules = parser.wrapped_parse(prog0)   # arbitrary not really used
+        rules[0].id = 0         # but we need a zero rule
+        fp = z3.Fixedpoint()
+        datasource = source.Datasource(primitives.TYPES)
+        octant_type = datasource.types["int4"]
+        z3_type = octant_type.type()
+
+        def mkv(v):
+            return z3.BitVecVal(v, z3_type)
+
+        p = z3.Function('p', z3_type, z3_type, z3.BoolSort())
+        q = z3.Function('q', z3_type, z3_type, z3.BoolSort())
+        for (x, y) in [(3, 0), (4, 1)]:
+            fp.add_rule(p(mkv(x), mkv(y)))
+        for (x, y) in [(5, 0), (6, 1)]:
+            fp.add_rule(q(mkv(x), mkv(y)))
+        relations = {'p': p, 'q': q}
+        x = ast.Variable("X", "int4")
+        y = ast.Variable("Y", "int4")
+        z = ast.Variable("Z", "int4")
+        for f in [p, q]:
+            fp.register_relation(f)
+        unfold_plan = unfolding.UnfoldPlan(
+            {0: [((('p', [1, 0]),), [x, y]),
+                 ((('q', [0, 1]),), [z, x])]},
+            {})
+        records = unfolding.plan_to_program(
+            unfold_plan, fp, datasource, relations, rules)
+        self.assertIn(0, records)
+        trimmed = sorted([
+            sorted((var, val.as_long()) for ((var, _), val) in rec.items())
+            for rec in records[0]
+        ], key=lambda t: t[0])
+        expected = [
+            [('X', 0), ('Y', 3), ('Z', 5)],
+            [('X', 1), ('Y', 4), ('Z', 6)]
+        ]
+        self.assertEqual(expected, trimmed)
+
+    def test_plan_to_program_idb(self):
+        rules = parser.wrapped_parse(prog0)   # arbitrary not really used
+        rules[0].id = 0
+        fp = z3.Fixedpoint()
+        datasource = source.Datasource(primitives.TYPES)
+        octant_type = datasource.types["int4"]
+        z3_type = octant_type.type()
+
+        def mkv(v):
+            return z3.BitVecVal(v, z3_type)
+
+        p = z3.Function('p', z3_type, z3_type, z3.BoolSort())
+        q = z3.Function('q', z3_type, z3_type, z3.BoolSort())
+        content = {
+            'p': [(mkv(3), mkv(0)), (mkv(4), mkv(1))]
+        }
+        for (x, y) in [(5, 0), (6, 1)]:
+            fp.add_rule(q(mkv(x), mkv(y)))
+        relations = {'p': p, 'q': q}
+        x = ast.Variable("X", "int4")
+        y = ast.Variable("Y", "int4")
+        z = ast.Variable("Z", "int4")
+        for f in [p, q]:
+            fp.register_relation(f)
+        unfold_plan = unfolding.UnfoldPlan(
+            {0: [((('p', [1, 0]),), [x, y]),
+                 ((('q', [0, 1]),), [z, x])]},
+            content)
+        records = unfolding.plan_to_program(
+            unfold_plan, fp, datasource, relations, rules)
+        self.assertIn(0, records)
+        trimmed = sorted([
+            sorted((var, val.as_long()) for ((var, _), val) in rec.items())
+            for rec in records[0]
+        ], key=lambda t: t[0])
+        expected = [
+            [('X', 0), ('Y', 3), ('Z', 5)],
+            [('X', 1), ('Y', 4), ('Z', 6)]
+        ]
+        self.assertEqual(expected, trimmed)

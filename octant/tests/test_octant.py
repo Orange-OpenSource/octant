@@ -22,7 +22,8 @@ from octant.tests import base
 
 
 def standard_cfg(mock_cfg):
-    mock_cfg.pretty = True
+    mock_cfg.doc = False
+    mock_cfg.smt2 = None
     mock_cfg.csv = False
     mock_cfg.time = True
     mock_cfg.query = ["p(X)"]
@@ -40,7 +41,7 @@ class TestDatalogTheory(base.TestCase):
         with base.capture_stdout() as out:
             octant.print_result(
                 "query", ["VarX", "Y"],
-                [z3r.Cube({0: 2134, 1: 3}), z3r.Cube({0: 4, 1: 572})],
+                [z3r.Cube({0: 2134, 1: 3}, 1), z3r.Cube({0: 4, 1: 572}, 1)],
                 3.5, True)
         result = out.getvalue()
         self.assertIs(True, "2134" in result)
@@ -76,6 +77,7 @@ class TestDatalogTheory(base.TestCase):
         with base.capture_stdout() as out:
             octant.main()
         result = out.getvalue()
+        print(result)
         self.assertIs(True, "3452" in result)
 
     @mock.patch("octant.front.main.sys.exit")

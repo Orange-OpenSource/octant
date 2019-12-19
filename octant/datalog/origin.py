@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import collections
 import itertools
 import six
 
@@ -92,7 +93,7 @@ class UFConj(UFType):
     simplified at some point as one of the origins.
     """
     def __init__(self, args):
-        #: the members of the conjunct: args
+        #: the members of the conjunct: args. It must be a tuple
         self.args = args
 
     def __eq__(self, other):
@@ -102,7 +103,7 @@ class UFConj(UFType):
         return hash(self.args)
 
     def __repr__(self):
-        return "UFConj(%s)" % (self.args,)
+        return "UFConj%s" % (self.args,)
 
 
 class UFDisj(UFType):
@@ -112,7 +113,7 @@ class UFDisj(UFType):
     """
 
     def __init__(self, args):
-        #: the members of the disjunct: args
+        #: the members of the disjunct: args. It must be a tuple
         self.args = args
 
     def __eq__(self, other):
@@ -122,7 +123,12 @@ class UFDisj(UFType):
         return hash(self.args)
 
     def __repr__(self):
-        return "UFDisj(%s)" % (self.args,)
+        return "UFDisj%s" % (self.args,)
+
+
+class GroundHead(collections.namedtuple("GroundHead", ["table", "rid"])):
+    def __str__(self):
+        return self.table + "_(" + str(self.rid) + ")"
 
 
 top = UFTop()
@@ -166,8 +172,12 @@ def occurrence(t):
 
 def simplify_to_ground_types(t):
     """Gives back simple ground or disjunction"""
-    if is_ground(t) or is_disj(t):
+    if is_ground(t):
         return [t]
+    if is_disj(t):
+        expand_args = map(simplify_to_ground_types, t.args)
+        prod_args = itertools.product(*expand_args)
+        return map(UFDisj, prod_args)
     if isinstance(t, UFConj):
         return [g for a in t.args for g in simplify_to_ground_types(a)]
     return []
@@ -243,8 +253,9 @@ def reduce_disj(l):
         for x in (e.args if is_disj(e) else (e,))}
     if len(flat) == 1:
         return flat.pop()
-    disj = top if top in flat else UFDisj(tuple(flat))
-    return disj
+    if top in flat:
+        return top
+    return UFDisj(tuple(flat))
 
 
 def reduce_conj(l):
@@ -261,13 +272,15 @@ def reduce_conj(l):
         best type
     :rtype: UFType
     """
-    flat = [
+    flatset = {
         x
         for e in l
-        for x in (e.args if isinstance(e, UFConj) else (e,))]
-    flat.sort(key=weight_type)
+        for x in (e.args if isinstance(e, UFConj) else (e,))}
+    flat = sorted(flatset, key=weight_type)
     if len(flat) > 1 and is_ground(flat[0]):
-        return UFConj(tuple(filter(is_ground, flat)))
+        flat = tuple(filter(is_ground, flat))
+    if len(flat) > 1:
+        return UFConj(tuple(flat))
     return flat[0]
 
 
@@ -399,17 +412,25 @@ class Origin(object):
         :returns: next value of table types.
         :rtype: map from string to array of type.
         """
-        def type_arg_at(arg, table, i):
-            return (
-                self.var_types.get(arg.full_id(), top)
-                if isinstance(arg, ast.Variable)
-                else UFGround(i, table, None))
+        def type_arg_at(arg, table, i, id):
+            if isinstance(arg, ast.Variable):
+                return self.var_types.get(arg.full_id(), top)
+            real = table if id is None else GroundHead(table, id)
+            return UFGround(i, real, None)
+
+        def head_atom_ground(rule):
+            return not any(
+                isinstance(arg, ast.Variable) for arg in rule.head.args)
 
         return {
             table: [
-                reduce_disj({type_arg_at(arg, table, i) for arg in args})
-                for i, args in enumerate(zip(*(rule.head.args
-                                               for rule in group_rule)))]
+                reduce_disj(set(tlist))
+                for tlist in zip(*(
+                    [type_arg_at(arg, table, i, id)
+                     for i, arg in enumerate(rule.head.args)]
+                    for rule in group_rule
+                    for id in (None if head_atom_ground(rule) else rule.id,)
+                    ))]
             for table, group_rule in itertools.groupby(self.rules,
                                                        key=head_table)}
 

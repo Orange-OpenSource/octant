@@ -67,9 +67,8 @@ class Z3Theory(object):
     def build_theory(self):
         """Builds the Z3 theory"""
         self.build_relations()
-        # TODO(piac6784) Retrieve table values as requested
-        # by self.compiler.unfold_plan. Build a datastructure with
-        # table columns needed (or all columns to begin.)
+        if self.compiler.project is not None:
+            self.compiler.project.set_relations(self.relations)
         self.retrieve_data()
         logging.getLogger().debug("AST of rules:\n%s", self.rules)
         self.build_rules()
@@ -101,21 +100,12 @@ class Z3Theory(object):
         def mk_relation(relation):
             "Builds the Z3 relation"
             return lambda args: self.context.fact(relation(args))
-        unfold_plan = self.compiler.unfold_plan
         with self.datasource:
             for table_name, fields in six.iteritems(
                     self.compiler.extensible_tables):
-                extract = (
-                    unfold_plan.tables.get(table_name)
-                    if unfold_plan is not None else None)
                 relation = self.relations[table_name]
-                if extract:
-                    table_content = self.datasource.retrieve_table(
-                        table_name, fields, mk_relation(relation), extract)
-                    unfold_plan.contents[table_name] = table_content
-                else:
-                    self.datasource.retrieve_table(
-                        table_name, fields, mk_relation(relation))
+                self.datasource.retrieve_table(
+                    table_name, fields, mk_relation(relation))
 
     def compile_expr(self, variables, expr, env):
         """Compile an expression to Z3"""
@@ -147,15 +137,27 @@ class Z3Theory(object):
             compiled_atom = z3.simplify(
                 operations.COMPARISON[atom.table](args))
         else:
-            relation = self.relations[atom.table]
-            compiled_atom = relation(*args)
+            if (self.compiler.project is not None and
+                    self.compiler.project.is_specialized(atom.table)):
+                compiled_atom = self.compiler.project.translate(
+                    self.context, atom, args)
+            else:
+                relation = self.relations[atom.table]
+                compiled_atom = relation(*args)
         return z3.Not(compiled_atom) if atom.negated else compiled_atom
 
     def build_rule(self, rule, env):
         vars = {}
         head = self.compile_atom(vars, rule.head, env)
-        body = [self.compile_atom(vars, atom, env) for atom in rule.body]
-        term1 = head if body == [] else z3.Implies(z3.And(*body), head)
+        body = [
+            self.compile_atom(vars, atom, env)
+            for atom in rule.body
+            if atom is not None]
+        if any(z3.is_false(at) for at in body):
+            return
+        body = [at for at in body if not z3.is_true(at)]
+        body_conj = body[0] if len(body) == 1 else z3.And(*body)
+        term1 = head if body == [] else z3.Implies(body_conj, head)
         term2 = (
             term1 if vars == {}
             else z3.ForAll(list(vars.values()), term1))
@@ -163,9 +165,11 @@ class Z3Theory(object):
 
     def build_rules(self):
         """Compiles rules to Z3"""
-        if cfg.CONF.doc and cfg.CONF.unfold:
+        if self.compiler.unfold_plan is not None:
             plan = self.compiler.unfold_plan
-            env = unfolding.environ_from_plan(plan)
+            env = unfolding.plan_to_program(
+                plan, self.context, self.datasource,
+                self.relations, self.rules)
         else:
             env = {}
         for rule in self.rules:
@@ -177,6 +181,8 @@ class Z3Theory(object):
                 self.build_rule(rule, {})
         z3c.register(self.context)
         logging.getLogger().debug("Compiled rules:\n%s", self.context)
+        if self.compiler.project is not None:
+            self.compiler.project.reconciliate(self.context)
         if cfg.CONF.smt2 is not None:
             with open(cfg.CONF.smt2, 'w') as fd:
                 self.dump_primitive_tables(fd)
@@ -205,6 +211,7 @@ class Z3Theory(object):
             arg for arg in atom.args if isinstance(arg, ast.Variable)
         ]))
         vars = {}
+        self.compiler.project = None
         query = self.compile_atom(vars, atom, {})
         if vars != {}:
             compiled_vars = [vars[ast_var.full_id()] for ast_var in ast_vars]

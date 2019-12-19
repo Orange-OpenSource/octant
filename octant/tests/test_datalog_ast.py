@@ -39,7 +39,7 @@ class TestVariable(base.TestCase):
         v = ast.Variable('id')
         lvars = v.variables()
         self.assertEqual(1, len(lvars))
-        lvars = [x[0] for x in lvars]
+        lvars = [x.full_id()[0] for x in lvars]
         self.assertIs(True, 'id' in lvars)
 
     def test_renaming(self):
@@ -150,7 +150,7 @@ class TestOperation(base.TestCase):
         o, _, _, _ = mk_o()
         lvars = o.variables()
         self.assertEqual(3, len(lvars))
-        lvars = [x[0] for x in lvars]
+        lvars = [x.full_id()[0] for x in lvars]
         self.assertIs(True, 'V1' in lvars)
         self.assertIs(True, 'V2' in lvars)
         self.assertIs(True, 'V3' in lvars)
@@ -181,7 +181,7 @@ class TestAtom(base.TestCase):
         a, _, _, _ = mk_o()
         lvars = a.variables()
         self.assertEqual(3, len(lvars))
-        lvars = [x[0] for x in lvars]
+        lvars = [x.full_id()[0] for x in lvars]
         self.assertIs(True, 'V1' in lvars)
         self.assertIs(True, 'V2' in lvars)
         self.assertIs(True, 'V3' in lvars)
@@ -224,7 +224,7 @@ class TestRule(base.TestCase):
         r, _, _, _ = mk_r()
         lvars = r.head_variables()
         self.assertEqual(2, len(lvars))
-        lvars = [x[0] for x in lvars]
+        lvars = [x.full_id()[0] for x in lvars]
         self.assertIs(True, 'V1' in lvars)
         self.assertIs(False, 'V3' in lvars)
 
@@ -232,7 +232,7 @@ class TestRule(base.TestCase):
         r, _, _, _ = mk_r()
         lvars = r.body_variables()
         self.assertEqual(3, len(lvars))
-        lvars = [x[0] for x in lvars]
+        lvars = [x.full_id()[0] for x in lvars]
         self.assertIs(True, 'V1' in lvars)
 
     def test_body_tables(self):

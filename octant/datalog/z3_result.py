@@ -43,16 +43,17 @@ class Cube(object):
     variables are in DeBruijn notation. Cube is defined as a dictionary
     """
 
-    def __init__(self, faces):
+    def __init__(self, faces, size):
         """Constructor for cube
 
         :param faces: dictionnary from variable index to constraint
            (Masked, value or Any)
         """
         self.faces = faces
+        self.size = size
 
     def __repr__(self):
-        return str([self.faces[i] for i in range(len(self.faces))])
+        return str([self.faces.get(i, None) for i in range(self.size)])
 
     def __eq__(self, x):
         return isinstance(x, self.__class__) and x.faces == self.faces
@@ -152,7 +153,8 @@ def make_cube(itemlist, types):
     ]
     return Cube({
         var: fuse(list(grp), types[var])
-        for var, grp in itertools.groupby(translist, key=lambda t: t.var)})
+        for var, grp in itertools.groupby(translist, key=lambda t: t.var)},
+        len(types))
 
 
 def split_cubes(itemlist, types):
@@ -205,3 +207,32 @@ def z3_to_array(expr, types):
         return True
     else:
         raise base.Z3NotWellFormed("Bad result {}: {}".format(expr, kind))
+
+
+def z3_to_array_simple(expr, vars):
+    def extract_eq(expr):
+        kind = expr.decl().kind()
+        children = expr.children()
+        if kind == z3.Z3_OP_EQ:
+            lhs = children[0]
+            rhs = children[1]
+            if z3.is_var(lhs):
+                return z3.get_var_index(lhs), rhs
+            elif z3.is_var(rhs):
+                return z3.get_var_index(rhs), lhs
+            else:
+                return None
+        return None
+
+    def extract_and(expr):
+        kind = expr.decl().kind()
+        if kind == z3.Z3_OP_AND:
+            result = [extract_eq(item) for item in expr.children()]
+        else:
+            result = [extract_eq(expr)]
+        return {vars[item[0]]: item[1] for item in result if item is not None}
+    kind = expr.decl().kind()
+    if kind == z3.Z3_OP_OR:
+        return [extract_and(item) for item in expr.children()]
+    else:
+        return [extract_and(expr)]
