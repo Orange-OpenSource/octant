@@ -16,6 +16,7 @@ a Datalog engine as an option.
    configuration
    command_line
    datalog
+   efficient
    types
    openstack
    skydive
